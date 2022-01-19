@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+    <name>Blue Room Challenge</name>
+    <directory>blue room challenge</directory>
+    <id>2724537570</id>
+    <description>This mod adds 4 custom challenges.
+
+[b][u]Blue Room Challenge[/u][/b]
+
+Play as Blue Baby and go fight yourself in the Chest.
+
+Between each room is a hidden blue room. Doorways will glow blue to alert you to their presence. Once you clear and leave a blue room, it will disappear.
+
+A random boss pool item and Book of Revelations will spawn in the first room.
+
+[b]Cursed[/b]
+
+Each blue room is covered in a layer of cursed mist that temporarily reduces you to base items and stats.
+
+[b][u]Dark Room Challenge[/u][/b]
+
+Tainted Judas wants in on the fun. Fight your way to The Lamb in the Dark Room.
+
+All of the Blue Room Challenge rules apply here. Additionally, you'll be surrounded in a cone of complete darkness.
+
+Dark Arts can help get you out of tricky situations.
+
+A random boss pool item and Satanic Bible will spawn in the first room.
+
+[b]Cursed[/b]
+
+Can you deal with the cone of darkness and cursed mist?</description>
+    <version>1.1</version>
+    <visibility>Public</visibility>
+    <tag id="Lua"/>
+    <tag id="Challenges"/>
+</metadata>

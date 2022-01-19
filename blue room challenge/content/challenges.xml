@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<challenges version="1">
+  <!-- https://wofsauge.github.io/IsaacDocs/rep/xml/challenges.html -->
+  <!-- Blue Room: play as Blue Baby -->
+  <!-- Dark Room: play as Tainted Judas -->
+  <!-- Hard mode -->
+  <!-- Curse filter: curse of darkness --> 
+  <challenge id="1" name="Blue Room Challenge"           playertype="4"  endstage="11" difficulty="1" altpath="true" />
+  <challenge id="2" name="Blue Room Challenge (Cursed)"  playertype="4"  endstage="11" difficulty="1" altpath="true" />
+  <challenge id="3" name="Dark Room Challenge"           playertype="24" endstage="11" difficulty="1" altpath="false" cursefilter="1" />
+  <challenge id="4" name="Dark Room Challenge (Cursed)"  playertype="24" endstage="11" difficulty="1" altpath="false" cursefilter="1" />
+</challenges>
