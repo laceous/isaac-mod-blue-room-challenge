@@ -3,7 +3,9 @@
     <name>Blue Room Challenge</name>
     <directory>blue room challenge</directory>
     <id>2724537570</id>
-    <description>This mod adds 4 custom challenges.
+    <description>[h1]Challenges[/h1]
+
+This mod adds 4 custom challenges.
 
 [b][u]Blue Room Challenge[/u][/b]
 
@@ -13,7 +15,7 @@ Between each room is a hidden blue room. Doorways will glow blue to alert you to
 
 A random boss pool item and Book of Revelations will spawn in the first room.
 
-[b]Cursed[/b]
+[b][u]Blue Room Challenge (Cursed)[/u][/b]
 
 Each blue room is covered in a layer of cursed mist that temporarily reduces you to base items and stats.
 
@@ -27,10 +29,14 @@ Dark Arts can help get you out of tricky situations.
 
 A random boss pool item and Satanic Bible will spawn in the first room.
 
-[b]Cursed[/b]
+[b][u]Dark Room Challenge (Cursed)[/u][/b]
 
-Can you deal with the cone of darkness and cursed mist?</description>
-    <version>1.1</version>
+Can you deal with the cone of darkness and cursed mist?
+
+[h1]Known Issues[/h1]
+
+If you enter a blue room from a large room, clear the blue room, and exit via the entrance door: you might find yourself against the correct wall, but at the wrong door slot. This is a bug with the game. The same thing happens in a normal run with the blue key.</description>
+    <version>1.2</version>
     <visibility>Public</visibility>
     <tag id="Lua"/>
     <tag id="Challenges"/>

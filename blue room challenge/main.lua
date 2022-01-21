@@ -2,10 +2,12 @@ local mod = RegisterMod('Blue Room Challenge', 1)
 local json = require('json')
 local game = Game()
 
-mod.blueRoomIndex = -1
+mod.blueRoomIndex = nil
+mod.onGameStartHasRun = false
 
 mod.state = {}
-mod.state.blueRooms = {} -- clear state for blue rooms
+mod.state.blueRooms = {}                    -- clear state for blue rooms
+mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT -- bug fix: the game doesn't remember LeaveDoor on continue
 mod.state.stageSeed = nil
 
 function mod:onGameStart(isContinue)
@@ -18,21 +20,32 @@ function mod:onGameStart(isContinue)
     local _, state = pcall(json.decode, mod:LoadData())
     
     if type(state) == 'table' then
-      if math.type(state.stageSeed) == 'integer' and type(state.blueRooms) == 'table' then
+      if math.type(state.stageSeed) == 'integer' then
         -- quick check to see if this is the same run being continued
         if state.stageSeed == stageSeed then
-          mod.state.blueRooms = state.blueRooms
+          if type(state.blueRooms) == 'table' then
+            mod.state.blueRooms = state.blueRooms
+          end
+          if math.type(state.leaveDoor) == 'integer' and state.leaveDoor > DoorSlot.NO_DOOR_SLOT and state.leaveDoor < DoorSlot.NUM_DOOR_SLOTS then
+            mod.state.leaveDoor = state.leaveDoor
+          end
         end
       end
     end
     
     if not isContinue then
       mod:clearBlueRooms()
+      mod.state.leaveDoor = level.LeaveDoor
     end
   end
   
   if not mod:isChallenge() then
     return
+  end
+  
+  if mod:isBlueRoom(level:GetCurrentRoomDesc()) then
+    mod:setBlueRoomIndex()
+    mod:setBlueRoomState()
   end
   
   -- spawn random boss pool item and book on start
@@ -44,6 +57,8 @@ function mod:onGameStart(isContinue)
     local book = mod:isDarkChallenge() and CollectibleType.COLLECTIBLE_SATANIC_BIBLE or CollectibleType.COLLECTIBLE_BOOK_OF_REVELATIONS
     Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, book, Vector(360, 280), Vector(0,0), nil)
   end
+  
+  mod.onGameStartHasRun = true
 end
 
 function mod:onGameExit()
@@ -67,8 +82,7 @@ function mod:onPreNewRoom()
   local level = game:GetLevel()
   local roomDesc = level:GetRoomByIdx(level:GetCurrentRoomIndex(), -1) -- writeable
   
-  -- if blue room
-  if roomDesc.Data.Type == RoomType.ROOM_BLUE and roomDesc.GridIndex == GridRooms.ROOM_BLUE_ROOM_IDX then
+  if mod:isBlueRoom(roomDesc) then
     roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_CURSED_MIST
   end
 end
@@ -81,9 +95,14 @@ function mod:onNewRoom()
   local level = game:GetLevel()
   local roomDesc = level:GetRoomByIdx(level:GetCurrentRoomIndex(), -1)
   
-  if roomDesc.Data.Type == RoomType.ROOM_BLUE and roomDesc.GridIndex == GridRooms.ROOM_BLUE_ROOM_IDX then
-    mod.blueRoomIndex = mod:getBlueRoomIndex() -- calculate this once
-    mod.state.blueRooms[mod.blueRoomIndex] = roomDesc.Clear
+  mod.state.leaveDoor = level.LeaveDoor
+  
+  -- this needs to happen in onGameStart the first time (which happens after onNewRoom)
+  if mod.onGameStartHasRun then
+    if mod:isBlueRoom(roomDesc) then
+      mod:setBlueRoomIndex() -- calculate this once
+      mod:setBlueRoomState()
+    end
   end
   
   -- set blue room redirect on surrounding rooms
@@ -107,8 +126,8 @@ function mod:onUpdate()
   local level = game:GetLevel()
   local roomDesc = level:GetCurrentRoomDesc() -- read-only
   
-  if roomDesc.Data.Type == RoomType.ROOM_BLUE and roomDesc.GridIndex == GridRooms.ROOM_BLUE_ROOM_IDX then
-    mod.state.blueRooms[mod.blueRoomIndex] = roomDesc.Clear
+  if mod:isBlueRoom(roomDesc) then
+    mod:setBlueRoomState()
   end
   
   -- this is here because red rooms could be created at any time
@@ -117,11 +136,8 @@ function mod:onUpdate()
   end
 end
 
-function mod:getBlueRoomIndex()
-  local level = game:GetLevel()
-  local roomDesc = level:GetRoomByIdx(level:GetPreviousRoomIndex(), -1)
-  local gridIdx = mod:getSurroundingGridIndexes(roomDesc)[level.LeaveDoor] -- index for room we would have gone to
-  return mod:mergeIndexes(roomDesc.ListIndex, level:GetRoomByIdx(gridIdx, -1).ListIndex)
+function mod:isBlueRoom(roomDesc)
+  return roomDesc.Data.Type == RoomType.ROOM_BLUE and roomDesc.GridIndex == GridRooms.ROOM_BLUE_ROOM_IDX
 end
 
 function mod:setBlueRoomRedirects(indexes)
@@ -132,12 +148,31 @@ function mod:setBlueRoomRedirects(indexes)
       local roomDesc = level:GetRoomByIdx(gridIdx, -1) -- doc says this always returns an object, check GridIndex
       
       if roomDesc.GridIndex >= 0 then
-        if not mod.state.blueRooms[mod:mergeIndexes(level:GetCurrentRoomDesc().ListIndex, roomDesc.ListIndex)] then
+        if not mod:isBlueRoomClear(mod:mergeIndexes(level:GetCurrentRoomDesc().ListIndex, roomDesc.ListIndex)) then
           roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_BLUE_REDIRECT -- game is responsible for removing this flag
         end
       end
     end
   end
+end
+
+function mod:setBlueRoomIndex()
+  local level = game:GetLevel()
+  local roomDesc = level:GetRoomByIdx(level:GetPreviousRoomIndex(), -1)
+  local gridIdx = mod:getSurroundingGridIndexes(roomDesc)[mod.state.leaveDoor] -- index for room we would have gone to
+  
+  mod.blueRoomIndex = mod:mergeIndexes(roomDesc.ListIndex, level:GetRoomByIdx(gridIdx, -1).ListIndex)
+end
+
+function mod:setBlueRoomState()
+  local level = game:GetLevel()
+  local roomDesc = level:GetCurrentRoomDesc()
+  
+  mod.state.blueRooms[mod.blueRoomIndex] = roomDesc.Clear
+end
+
+function mod:isBlueRoomClear(index)
+  return mod.state.blueRooms[index]
 end
 
 function mod:clearBlueRooms()
@@ -231,14 +266,14 @@ function mod:getSurroundingGridIndexes(roomDesc)
   return indexes
 end
 
-function mod:mergeIndexes(i1, i2)
+function mod:mergeIndexes(index1, index2)
   local low, high
-  if i1 < i2 then
-    low = i1
-    high = i2
+  if index1 < index2 then
+    low = index1
+    high = index2
   else
-    low = i2
-    high = i1
+    low = index2
+    high = index1
   end
   return low .. '-' .. high
 end
