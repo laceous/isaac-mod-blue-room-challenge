@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <metadata>
-    <name>Blue Room Challenge</name>
+    <name>Blue Room Challenge (+Curses)</name>
     <directory>blue room challenge</directory>
     <id>2724537570</id>
     <description>[h1]Challenges[/h1]
@@ -33,11 +33,34 @@ A random boss pool item and Satanic Bible will spawn in the first room.
 
 Can you deal with the cone of darkness and cursed mist?
 
+[h1]Curses[/h1]
+
+This mod has been updated with the following curses which are available in every mode. Mod Config Menu can be used to change how often they show up.
+
+[b][u]Curse of Blue Rooms![/u][/b]
+
+This is what the normal challenges use.
+
+[b][u]Curse of Blue Rooms!![/u][/b]
+
+This is what the cursed challenges use.
+
+[b][u]Curse of Pitch Black![/u][/b]
+
+This is the cone of darkness surrounding Tainted Judas in his challenges.
+
 [h1]Known Issues[/h1]
 
-If you enter a blue room from a large room, clear the blue room, and exit via the entrance door: you might find yourself against the correct wall, but at the wrong door slot. This is a bug with the game. The same thing happens in a normal run with the blue key.</description>
-    <version>1.3</version>
+If you enter a blue room from a large room, clear the blue room, and exit via the entrance door: you might find yourself against the correct wall, but at the wrong door slot. This is a bug with the game. The same thing happens in a normal run with the blue key.
+
+The icon for the custom curses will either show Curse of the Giant or nothing. The text should be correct though.
+
+There is a blue room glow for secret rooms, but it's hard to see in normally lit rooms.
+
+After installing the latest update, you might need to restart the game for it to properly pick up the curses.</description>
+    <version>1.5</version>
     <visibility>Public</visibility>
     <tag id="Lua"/>
+    <tag id="Hazards"/>
     <tag id="Challenges"/>
 </metadata>
