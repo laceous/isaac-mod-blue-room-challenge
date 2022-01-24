@@ -58,7 +58,7 @@ There is a blue room glow for secret rooms, but it's hard to see in normally lit
 The icon for the custom curses will either show Curse of the Giant or nothing. The text should be correct though.
 
 After installing the latest update, you might need to restart the game for it to properly pick up the curses.</description>
-    <version>1.6</version>
+    <version>1.7</version>
     <visibility>Public</visibility>
     <tag id="Lua"/>
     <tag id="Hazards"/>

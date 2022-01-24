@@ -75,7 +75,7 @@ function mod:onGameStart(isContinue)
     end
   end
   
-  if mod:hasCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
+  if mod:hasAnyCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
     if mod:isBlueRoom(level:GetCurrentRoomDesc()) then
       mod:setBlueRoomIndex()
       mod:setBlueRoomState()
@@ -137,7 +137,7 @@ end
 
 -- onNewRoom doesn't enable FLAG_CURSED_MIST quickly enough
 function mod:onPreNewRoom()
-  if mod:hasCurse(mod.flagCurseOfBlueRooms2) or mod:isCursedChallenge() then
+  if mod:hasAnyCurse(mod.flagCurseOfBlueRooms2) or mod:isCursedChallenge() then
     local level = game:GetLevel()
     local roomDesc = level:GetRoomByIdx(level:GetCurrentRoomIndex(), -1) -- writeable
     
@@ -153,7 +153,7 @@ function mod:onNewRoom()
   
   mod.state.leaveDoor = level.LeaveDoor
   
-  if mod:hasCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
+  if mod:hasAnyCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
     -- this needs to happen in onGameStart the first time (which happens after onNewRoom)
     if mod.onGameStartHasRun then
       if mod:isBlueRoom(roomDesc) then
@@ -169,13 +169,13 @@ function mod:onNewRoom()
     end
   end
   
-  if mod:hasCurse(mod.flagCurseOfPitchBlack) or mod:isDarkChallenge() then
+  if mod:hasAnyCurse(mod.flagCurseOfPitchBlack) or mod:isDarkChallenge() then
     roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_PITCH_BLACK
   end
 end
 
 function mod:onUpdate()
-  if mod:hasCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
+  if mod:hasAnyCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
     local level = game:GetLevel()
     local roomDesc = level:GetCurrentRoomDesc() -- read-only
     
@@ -365,7 +365,7 @@ function mod:getDimension(roomDesc)
   return -1
 end
 
-function mod:hasCurse(curse)
+function mod:hasAnyCurse(curse)
   local level = game:GetLevel()
   local curses = level:GetCurses()
   
