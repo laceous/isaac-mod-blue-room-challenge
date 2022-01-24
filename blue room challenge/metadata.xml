@@ -53,12 +53,12 @@ This is the cone of darkness surrounding Tainted Judas in his challenges.
 
 If you enter a blue room from a large room, clear the blue room, and exit via the entrance door: you might find yourself against the correct wall, but at the wrong door slot. This is a bug with the game. The same thing happens in a normal run with the blue key.
 
-The icon for the custom curses will either show Curse of the Giant or nothing. The text should be correct though.
-
 There is a blue room glow for secret rooms, but it's hard to see in normally lit rooms.
 
+The icon for the custom curses will either show Curse of the Giant or nothing. The text should be correct though.
+
 After installing the latest update, you might need to restart the game for it to properly pick up the curses.</description>
-    <version>1.5</version>
+    <version>1.6</version>
     <visibility>Public</visibility>
     <tag id="Lua"/>
     <tag id="Hazards"/>

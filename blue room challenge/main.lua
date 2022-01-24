@@ -1,4 +1,4 @@
-local mod = RegisterMod('Blue Room Challenge (+Curses)', 1)
+local mod = RegisterMod('Blue Room Challenge', 1)
 local json = require('json')
 local game = Game()
 
@@ -28,6 +28,7 @@ mod.state.probabilityBlueRooms =  { normal = 3, hard = 20, greed = 0, greedier =
 mod.state.probabilityBlueRooms2 = { normal = 0, hard = 3,  greed = 0, greedier = 0 }
 mod.state.probabilityPitchBlack = { normal = 0, hard = 3,  greed = 0, greedier = 0 }
 mod.state.overrideCurses = false
+mod.state.enableCursesForChallenges = false
 
 function mod:onGameStart(isContinue)
   local level = game:GetLevel()
@@ -62,6 +63,9 @@ function mod:onGameStart(isContinue)
       end
       if type(state.overrideCurses) == 'boolean' then
         mod.state.overrideCurses = state.overrideCurses
+      end
+      if type(state.enableCursesForChallenges) == 'boolean' then
+        mod.state.enableCursesForChallenges = state.enableCursesForChallenges
       end
     end
     
@@ -104,6 +108,10 @@ function mod:onCurseEval(curses)
     end
     
     return curses | flag
+  end
+  
+  if Isaac.GetChallenge() ~= Challenge.CHALLENGE_NULL and not mod.state.enableCursesForChallenges then
+    return curses
   end
   
   if curses == LevelCurse.CURSE_NONE or mod.state.overrideCurses then
@@ -405,6 +413,23 @@ function mod:setupModConfigMenu()
         mod.state.overrideCurses = b
       end,
       Info = { 'The game may have already set a curse', 'Should we respect it or potentially override it?' }
+    }
+  )
+  ModConfigMenu.AddSetting(
+    mod.Name,
+    'Curses',
+    {
+      Type = ModConfigMenu.OptionType.BOOLEAN,
+      CurrentSetting = function()
+        return mod.state.enableCursesForChallenges
+      end,
+      Display = function()
+        return (mod.state.enableCursesForChallenges and 'Enable' or 'Disable') .. ' these curses for challenges'
+      end,
+      OnChange = function(b)
+        mod.state.enableCursesForChallenges = b
+      end,
+      Info = { 'Can other challenges potentially get the curses listed below?' }
     }
   )
   ModConfigMenu.AddSpace(mod.Name, 'Curses')
