@@ -98,6 +98,7 @@ end
 
 function mod:onGameExit()
   mod:SaveData(json.encode(mod.state))
+  mod.onGameStartHasRun = false
 end
 
 function mod:onCurseEval(curses)
