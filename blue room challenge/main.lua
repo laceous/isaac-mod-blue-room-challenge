@@ -24,7 +24,7 @@ mod.state = {}
 mod.state.blueRooms = {}                    -- clear state for blue rooms
 mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT -- bug fix: the game doesn't remember LeaveDoor on continue
 mod.state.stageSeed = nil
-mod.state.probabilityBlueRooms =  { normal = 3, hard = 20, greed = 0, greedier = 0 }
+mod.state.probabilityBlueRooms  = { normal = 3, hard = 20, greed = 0, greedier = 0 }
 mod.state.probabilityBlueRooms2 = { normal = 0, hard = 3,  greed = 0, greedier = 0 }
 mod.state.probabilityPitchBlack = { normal = 0, hard = 3,  greed = 0, greedier = 0 }
 mod.state.overrideCurses = false
@@ -82,15 +82,13 @@ function mod:onGameStart(isContinue)
     end
   end
   
-  if mod:isChallenge() then
-    if not isContinue then -- spawn random boss pool item and book on start
-      local itemPool = game:GetItemPool()
-      local collectible = itemPool:GetCollectible(ItemPoolType.POOL_BOSS, false, Random(), CollectibleType.COLLECTIBLE_NULL)
-      Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, collectible, Vector(280, 280), Vector(0,0), nil) -- game:Spawn
-      
-      local book = mod:isDarkChallenge() and CollectibleType.COLLECTIBLE_SATANIC_BIBLE or CollectibleType.COLLECTIBLE_BOOK_OF_REVELATIONS
-      Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, book, Vector(360, 280), Vector(0,0), nil)
-    end
+  if mod:isChallenge() and not isContinue then -- spawn random boss pool item and book on start
+    local itemPool = game:GetItemPool()
+    local collectible = itemPool:GetCollectible(ItemPoolType.POOL_BOSS, false, Random(), CollectibleType.COLLECTIBLE_NULL)
+    Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, collectible, Vector(280, 280), Vector(0,0), nil) -- game:Spawn
+    
+    local book = mod:isDarkChallenge() and CollectibleType.COLLECTIBLE_SATANIC_BIBLE or CollectibleType.COLLECTIBLE_BOOK_OF_REVELATIONS
+    Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, book, Vector(360, 280), Vector(0,0), nil)
   end
   
   mod.onGameStartHasRun = true
@@ -364,11 +362,14 @@ end
 
 function mod:isMinesEscapeSequence()
   local level = game:GetLevel()
+  local roomDesc = level:GetCurrentRoomDesc()
   local stage = level:GetStage()
   local stageType = level:GetStageType()
-  local roomDesc = level:GetCurrentRoomDesc()
   
-  return not game:IsGreedMode() and (stage == LevelStage.STAGE2_2 or (mod:hasAnyCurse(LevelCurse.CURSE_OF_LABYRINTH) and stage == LevelStage.STAGE2_1)) and (stageType == StageType.STAGETYPE_REPENTANCE or stageType == StageType.STAGETYPE_REPENTANCE_B) and mod:getDimension(roomDesc) == 1
+  return not game:IsGreedMode() and
+         (stage == LevelStage.STAGE2_2 or (mod:hasAnyCurse(LevelCurse.CURSE_OF_LABYRINTH) and stage == LevelStage.STAGE2_1)) and
+         (stageType == StageType.STAGETYPE_REPENTANCE or stageType == StageType.STAGETYPE_REPENTANCE_B) and
+         mod:getDimension(roomDesc) == 1
 end
 
 function mod:isMomsHeart()
@@ -376,8 +377,14 @@ function mod:isMomsHeart()
   local room = level:GetCurrentRoom()
   local roomDesc = level:GetCurrentRoomDesc()
   local stage = level:GetStage()
+  local stageType = level:GetStageType()
   
-  return not game:IsGreedMode() and (stage == LevelStage.STAGE4_2 or (mod:hasAnyCurse(LevelCurse.CURSE_OF_LABYRINTH) and stage == LevelStage.STAGE4_1)) and roomDesc.GridIndex >= 0 and room:GetType() == RoomType.ROOM_BOSS and room:IsCurrentRoomLastBoss()
+  return not game:IsGreedMode() and
+         (stage == LevelStage.STAGE4_2 or (mod:hasAnyCurse(LevelCurse.CURSE_OF_LABYRINTH) and stage == LevelStage.STAGE4_1)) and
+         (stageType == StageType.STAGETYPE_ORIGINAL or stageType == StageType.STAGETYPE_WOTL or stageType == StageType.STAGETYPE_AFTERBIRTH) and
+         roomDesc.GridIndex >= 0 and
+         room:GetType() == RoomType.ROOM_BOSS and
+         room:IsCurrentRoomLastBoss()
 end
 
 function mod:getDimension(roomDesc)
