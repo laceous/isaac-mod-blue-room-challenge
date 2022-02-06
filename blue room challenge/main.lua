@@ -150,6 +150,7 @@ end
 
 function mod:onNewRoom()
   local level = game:GetLevel()
+  local room = level:GetCurrentRoom()
   local roomDesc = level:GetRoomByIdx(level:GetCurrentRoomIndex(), -1)
   
   mod.state.leaveDoor = level.LeaveDoor
@@ -173,6 +174,14 @@ function mod:onNewRoom()
   if mod:hasAnyCurse(mod.flagCurseOfPitchBlack) or mod:isDarkChallenge() then
     roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_PITCH_BLACK
   end
+  
+  if mod:isHushChallenge() then
+    if mod:isMomsHeart() and room:IsClear() then
+      room:TrySpawnBlueWombDoor(false, true, true)
+    elseif roomDesc.GridIndex == GridRooms.ROOM_BLUE_WOOM_IDX then
+      Isaac.GridSpawn(GridEntityType.GRID_TRAPDOOR, 0, room:GetCenterPos(), true) -- room:SpawnGridEntity()
+    end
+  end
 end
 
 function mod:onUpdate()
@@ -188,6 +197,17 @@ function mod:onUpdate()
     if roomDesc.GridIndex >= 0 and not mod:isMinesEscapeSequence() then
       mod:setBlueRoomRedirects(mod:getSurroundingGridIndexes(roomDesc))
     end
+  end
+end
+
+-- filtered to PICKUP_TROPHY
+function mod:onPickupInit(pickup)
+  local level = game:GetLevel()
+  local room = level:GetCurrentRoom()
+  
+  if mod:isHushChallenge() and mod:isMomsHeart() then
+    pickup:Remove() -- remove the trophy
+    room:TrySpawnBlueWombDoor(true, true, true)
   end
 end
 
@@ -348,7 +368,16 @@ function mod:isMinesEscapeSequence()
   local stageType = level:GetStageType()
   local roomDesc = level:GetCurrentRoomDesc()
   
-  return stage == LevelStage.STAGE2_2 and (stageType == StageType.STAGETYPE_REPENTANCE or stageType == StageType.STAGETYPE_REPENTANCE_B) and mod:getDimension(roomDesc) == 1
+  return not game:IsGreedMode() and (stage == LevelStage.STAGE2_2 or (mod:hasAnyCurse(LevelCurse.CURSE_OF_LABYRINTH) and stage == LevelStage.STAGE2_1)) and (stageType == StageType.STAGETYPE_REPENTANCE or stageType == StageType.STAGETYPE_REPENTANCE_B) and mod:getDimension(roomDesc) == 1
+end
+
+function mod:isMomsHeart()
+  local level = game:GetLevel()
+  local room = level:GetCurrentRoom()
+  local roomDesc = level:GetCurrentRoomDesc()
+  local stage = level:GetStage()
+  
+  return not game:IsGreedMode() and (stage == LevelStage.STAGE4_2 or (mod:hasAnyCurse(LevelCurse.CURSE_OF_LABYRINTH) and stage == LevelStage.STAGE4_1)) and roomDesc.GridIndex >= 0 and room:GetType() == RoomType.ROOM_BOSS and room:IsCurrentRoomLastBoss()
 end
 
 function mod:getDimension(roomDesc)
@@ -363,6 +392,7 @@ function mod:getDimension(roomDesc)
       return i
     end
   end
+  
   return -1
 end
 
@@ -381,8 +411,10 @@ function mod:isChallenge()
   local challenge = Isaac.GetChallenge()
   return challenge == Isaac.GetChallengeIdByName('Blue Room Challenge') or
          challenge == Isaac.GetChallengeIdByName('Blue Room Challenge (Cursed)') or
+         challenge == Isaac.GetChallengeIdByName('Blue Room Challenge (Hush)') or
          challenge == Isaac.GetChallengeIdByName('Dark Room Challenge') or
-         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Cursed)')
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Cursed)') or
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hush)')
 end
 
 function mod:isCursedChallenge()
@@ -391,10 +423,17 @@ function mod:isCursedChallenge()
          challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Cursed)')
 end
 
+function mod:isHushChallenge()
+  local challenge = Isaac.GetChallenge()
+  return challenge == Isaac.GetChallengeIdByName('Blue Room Challenge (Hush)') or
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hush)')
+end
+
 function mod:isDarkChallenge()
   local challenge = Isaac.GetChallenge()
   return challenge == Isaac.GetChallengeIdByName('Dark Room Challenge') or
-         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Cursed)')
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Cursed)') or
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hush)')
 end
 
 -- start ModConfigMenu --
@@ -477,6 +516,7 @@ mod:AddCallback(ModCallbacks.MC_POST_NEW_LEVEL, mod.onNewLevel)
 mod:AddCallback(ModCallbacks.MC_PRE_ROOM_ENTITY_SPAWN, mod.onPreNewRoom) -- fires 0-n times per new room, 1-n for blue rooms
 mod:AddCallback(ModCallbacks.MC_POST_NEW_ROOM, mod.onNewRoom)
 mod:AddCallback(ModCallbacks.MC_POST_UPDATE, mod.onUpdate)
+mod:AddCallback(ModCallbacks.MC_POST_PICKUP_INIT, mod.onPickupInit, PickupVariant.PICKUP_TROPHY)
 
 if ModConfigMenu then
   mod:setupModConfigMenu()

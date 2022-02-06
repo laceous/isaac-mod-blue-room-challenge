@@ -5,7 +5,7 @@
     <id>2724537570</id>
     <description>[h1]Challenges[/h1]
 
-This mod adds 4 custom challenges.
+This mod adds 6 custom challenges.
 
 [b][u]Blue Room Challenge[/u][/b]
 
@@ -18,6 +18,10 @@ A random boss pool item and Book of Revelations will spawn in the first room.
 [b][u]Blue Room Challenge (Cursed)[/u][/b]
 
 Each blue room is covered in a layer of cursed mist that temporarily reduces you to base items and stats.
+
+[b][u]Blue Room Challenge (Hush)[/u][/b]
+
+This is the same as the normal challenge, but you're headed to Hush.
 
 [b][u]Dark Room Challenge[/u][/b]
 
@@ -32,6 +36,10 @@ A random boss pool item and Satanic Bible will spawn in the first room.
 [b][u]Dark Room Challenge (Cursed)[/u][/b]
 
 Can you deal with the cone of darkness and cursed mist?
+
+[b][u]Dark Room Challenge (Hush)[/u][/b]
+
+This is the same as the normal challenge, but you're headed to Hush.
 
 [h1]Curses[/h1]
 
@@ -57,8 +65,10 @@ There is a blue room glow for secret rooms, but it's hard to see in normally lit
 
 The icon for the custom curses will either show Curse of the Giant or nothing. The text should be correct though.
 
-After installing the latest update, you might need to restart the game for it to properly pick up the curses.</description>
-    <version>1.10</version>
+After installing the latest update, you might need to restart the game for it to properly pick up the curses.
+
+The Hush challenges will show the Mom's Heart icon as the ending boss.</description>
+    <version>1.11</version>
     <visibility>Public</visibility>
     <tag id="Lua"/>
     <tag id="Hazards"/>
