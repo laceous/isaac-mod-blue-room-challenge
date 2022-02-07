@@ -75,12 +75,7 @@ function mod:onGameStart(isContinue)
     end
   end
   
-  if mod:hasAnyCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
-    if mod:isBlueRoom(level:GetCurrentRoomDesc()) then
-      mod:setBlueRoomIndex()
-      mod:setBlueRoomState()
-    end
-  end
+  mod:doBlueRoomLogic(true)
   
   if mod:isChallenge() and not isContinue then -- spawn random boss pool item and book on start
     local itemPool = game:GetItemPool()
@@ -153,20 +148,9 @@ function mod:onNewRoom()
   
   mod.state.leaveDoor = level.LeaveDoor
   
-  if mod:hasAnyCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
-    -- this needs to happen in onGameStart the first time (which happens after onNewRoom)
-    if mod.onGameStartHasRun then
-      if mod:isBlueRoom(roomDesc) then
-        mod:setBlueRoomIndex() -- calculate this once
-        mod:setBlueRoomState()
-      end
-    end
-    
-    -- set blue room redirect on surrounding rooms
-    -- this only works if we're on the grid, otherwise the other end of the blue room might not have a door
-    if roomDesc.GridIndex >= 0 and not mod:isMinesEscapeSequence() then
-      mod:setBlueRoomRedirects(mod:getSurroundingGridIndexes(roomDesc))
-    end
+  -- this needs to happen in onGameStart the first time (which happens after onNewRoom)
+  if mod.onGameStartHasRun then
+    mod:doBlueRoomLogic(true)
   end
   
   if mod:hasAnyCurse(mod.flagCurseOfPitchBlack) or mod:isDarkChallenge() then
@@ -183,19 +167,8 @@ function mod:onNewRoom()
 end
 
 function mod:onUpdate()
-  if mod:hasAnyCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
-    local level = game:GetLevel()
-    local roomDesc = level:GetCurrentRoomDesc() -- read-only
-    
-    if mod:isBlueRoom(roomDesc) then
-      mod:setBlueRoomState()
-    end
-    
-    -- this is here because red rooms could be created at any time
-    if roomDesc.GridIndex >= 0 and not mod:isMinesEscapeSequence() then
-      mod:setBlueRoomRedirects(mod:getSurroundingGridIndexes(roomDesc))
-    end
-  end
+  -- this is here because red rooms could be created at any time
+  mod:doBlueRoomLogic(false)
 end
 
 -- filtered to PICKUP_TROPHY
@@ -206,6 +179,27 @@ function mod:onPickupInit(pickup)
   if mod:isHushChallenge() and mod:isMomsHeart() then
     pickup:Remove() -- remove the trophy
     room:TrySpawnBlueWombDoor(true, true, true)
+  end
+end
+
+function mod:doBlueRoomLogic(setBlueRoomIndex)
+  if mod:hasAnyCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
+    local level = game:GetLevel()
+    local roomDesc = level:GetCurrentRoomDesc() -- read-only
+    
+    if mod:isBlueRoom(roomDesc) then
+      if setBlueRoomIndex then
+        mod:setBlueRoomIndex() -- calculate this once
+      end
+      
+      mod:setBlueRoomState()
+    end
+    
+    -- set blue room redirect on surrounding rooms
+    -- this only works if we're on the grid, otherwise the other end of the blue room might not have a door
+    if roomDesc.GridIndex >= 0 and not mod:isMinesEscapeSequence() then
+      mod:setBlueRoomRedirects(mod:getSurroundingGridIndexes(roomDesc))
+    end
   end
 end
 
