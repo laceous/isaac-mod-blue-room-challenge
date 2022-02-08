@@ -173,8 +173,7 @@ end
 
 -- filtered to PICKUP_TROPHY
 function mod:onPickupInit(pickup)
-  local level = game:GetLevel()
-  local room = level:GetCurrentRoom()
+  local room = game:GetRoom()
   
   if mod:isHushChallenge() and mod:isMomsHeart() then
     pickup:Remove() -- remove the trophy
