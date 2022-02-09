@@ -134,8 +134,9 @@ function mod:onPreNewRoom()
   if mod:hasAnyCurse(mod.flagCurseOfBlueRooms2) or mod:isCursedChallenge() then
     local level = game:GetLevel()
     local roomDesc = level:GetRoomByIdx(level:GetCurrentRoomIndex(), -1) -- writeable
+    local stage = level:GetStage()
     
-    if mod:isBlueRoom(roomDesc) then
+    if mod:isBlueRoom(roomDesc) or (mod:isHushChallenge() and (mod:isBlueWoom(roomDesc) or stage == LevelStage.STAGE4_3)) then
       roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_CURSED_MIST
     end
   end
@@ -160,8 +161,8 @@ function mod:onNewRoom()
   if mod:isHushChallenge() then
     if mod:isMomsHeart() and room:IsClear() then
       room:TrySpawnBlueWombDoor(false, true, true)
-    elseif roomDesc.GridIndex == GridRooms.ROOM_BLUE_WOOM_IDX then
-      Isaac.GridSpawn(GridEntityType.GRID_TRAPDOOR, 0, room:GetCenterPos(), true) -- room:SpawnGridEntity()
+    elseif mod:isBlueWoom(roomDesc) then
+      Isaac.GridSpawn(GridEntityType.GRID_TRAPDOOR, 0, room:GetCenterPos(), true) -- room:SpawnGridEntity
     end
   end
 end
@@ -204,6 +205,10 @@ end
 
 function mod:isBlueRoom(roomDesc)
   return roomDesc.Data.Type == RoomType.ROOM_BLUE and roomDesc.GridIndex == GridRooms.ROOM_BLUE_ROOM_IDX
+end
+
+function mod:isBlueWoom(roomDesc)
+  return roomDesc.GridIndex == GridRooms.ROOM_BLUE_WOOM_IDX
 end
 
 function mod:setBlueRoomRedirects(indexes)
@@ -412,28 +417,35 @@ function mod:isChallenge()
   return challenge == Isaac.GetChallengeIdByName('Blue Room Challenge') or
          challenge == Isaac.GetChallengeIdByName('Blue Room Challenge (Cursed)') or
          challenge == Isaac.GetChallengeIdByName('Blue Room Challenge (Hush)') or
+         challenge == Isaac.GetChallengeIdByName('Blue Room Challenge (Hushed)') or
          challenge == Isaac.GetChallengeIdByName('Dark Room Challenge') or
          challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Cursed)') or
-         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hush)')
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hush)') or
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hushed)')
 end
 
 function mod:isCursedChallenge()
   local challenge = Isaac.GetChallenge()
   return challenge == Isaac.GetChallengeIdByName('Blue Room Challenge (Cursed)') or
-         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Cursed)')
+         challenge == Isaac.GetChallengeIdByName('Blue Room Challenge (Hushed)') or
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Cursed)') or
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hushed)')
 end
 
 function mod:isHushChallenge()
   local challenge = Isaac.GetChallenge()
   return challenge == Isaac.GetChallengeIdByName('Blue Room Challenge (Hush)') or
-         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hush)')
+         challenge == Isaac.GetChallengeIdByName('Blue Room Challenge (Hushed)') or
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hush)') or
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hushed)')
 end
 
 function mod:isDarkChallenge()
   local challenge = Isaac.GetChallenge()
   return challenge == Isaac.GetChallengeIdByName('Dark Room Challenge') or
          challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Cursed)') or
-         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hush)')
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hush)') or
+         challenge == Isaac.GetChallengeIdByName('Dark Room Challenge (Hushed)')
 end
 
 -- start ModConfigMenu --

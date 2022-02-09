@@ -8,7 +8,9 @@
     <challenge id="1" name="Blue Room Challenge"           playertype="4"  endstage="11" difficulty="1" altpath="true" />
     <challenge id="2" name="Blue Room Challenge (Cursed)"  playertype="4"  endstage="11" difficulty="1" altpath="true" />
     <challenge id="3" name="Blue Room Challenge (Hush)"    playertype="4"  endstage="8"  difficulty="1" altpath="true" />
-    <challenge id="4" name="Dark Room Challenge"           playertype="24" endstage="11" difficulty="1" altpath="false" cursefilter="1" />
-    <challenge id="5" name="Dark Room Challenge (Cursed)"  playertype="24" endstage="11" difficulty="1" altpath="false" cursefilter="1" />
-    <challenge id="6" name="Dark Room Challenge (Hush)"    playertype="24" endstage="8"  difficulty="1" altpath="false" cursefilter="1" />
+    <challenge id="4" name="Blue Room Challenge (Hushed)"  playertype="4"  endstage="8"  difficulty="1" altpath="true" />
+    <challenge id="5" name="Dark Room Challenge"           playertype="24" endstage="11" difficulty="1" altpath="false" cursefilter="1" />
+    <challenge id="6" name="Dark Room Challenge (Cursed)"  playertype="24" endstage="11" difficulty="1" altpath="false" cursefilter="1" />
+    <challenge id="7" name="Dark Room Challenge (Hush)"    playertype="24" endstage="8"  difficulty="1" altpath="false" cursefilter="1" />
+    <challenge id="8" name="Dark Room Challenge (Hushed)"  playertype="24" endstage="8"  difficulty="1" altpath="false" cursefilter="1" />
 </challenges>

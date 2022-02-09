@@ -5,7 +5,7 @@
     <id>2724537570</id>
     <description>[h1]Challenges[/h1]
 
-This mod adds 6 custom challenges.
+This mod adds 8 custom challenges.
 
 [b][u]Blue Room Challenge[/u][/b]
 
@@ -22,6 +22,10 @@ Each blue room is covered in a layer of cursed mist that temporarily reduces you
 [b][u]Blue Room Challenge (Hush)[/u][/b]
 
 This is the same as the normal challenge, but you're headed to Hush.
+
+[b][u]Blue Room Challenge (Hushed)[/u][/b]
+
+Cursed + Hush: Can you handle the Hush fight at base stats? (Hush is in a blue room.)
 
 [b][u]Dark Room Challenge[/u][/b]
 
@@ -41,17 +45,21 @@ Can you deal with the cone of darkness and cursed mist?
 
 This is the same as the normal challenge, but you're headed to Hush.
 
+[b][u]Dark Room Challenge (Hushed)[/u][/b]
+
+Cursed + Hush: Can you handle the Hush fight at base stats surrounded in a cone of complete darkness?
+
 [h1]Curses[/h1]
 
 This mod has been updated with the following curses which are available in every mode. Mod Config Menu can be used to change how often they show up.
 
 [b][u]Curse of Blue Rooms![/u][/b]
 
-This is what the normal challenges use.
+Adds blue rooms between rooms. This is what the normal challenges use.
 
 [b][u]Curse of Blue Rooms!![/u][/b]
 
-This is what the cursed challenges use.
+Adds cursed blue rooms between rooms. This is what the cursed challenges use.
 
 [b][u]Curse of Pitch Black![/u][/b]
 
@@ -68,7 +76,7 @@ The icon for the custom curses will either show Curse of the Giant or nothing. T
 After installing the latest update, you might need to restart the game for it to properly pick up the curses.
 
 The Hush challenges will show the Mom's Heart icon as the ending boss.</description>
-    <version>1.14</version>
+    <version>1.15</version>
     <visibility>Public</visibility>
     <tag id="Lua"/>
     <tag id="Hazards"/>
