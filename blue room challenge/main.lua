@@ -136,7 +136,7 @@ function mod:onPreNewRoom()
     local roomDesc = level:GetRoomByIdx(level:GetCurrentRoomIndex(), -1) -- writeable
     local stage = level:GetStage()
     
-    if mod:isBlueRoom(roomDesc) or (mod:isHushChallenge() and (mod:isBlueWoom(roomDesc) or stage == LevelStage.STAGE4_3)) then
+    if mod:isBlueRoom(roomDesc) or (mod:isCursedChallenge() and (mod:isBlueWoom(roomDesc) or stage == LevelStage.STAGE4_3)) then
       roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_CURSED_MIST
     end
   end
