@@ -3,14 +3,15 @@ local json = require('json')
 local game = Game()
 
 mod.blueRoomIndex = nil
+mod.frameCount = 0
 mod.onGameStartHasRun = false
 mod.curseOfBlueRooms = 'Curse of Blue Rooms!'
 mod.curseOfBlueRooms2 = 'Curse of Blue Rooms!!'
 mod.curseOfPitchBlack = 'Curse of Pitch Black!'
 -- 1 << x is the same as 2 ^ x except that the first returns an integer and the second returns a float
-mod.flagCurseOfBlueRooms = 1 << Isaac.GetCurseIdByName(mod.curseOfBlueRooms) - 1
-mod.flagCurseOfBlueRooms2 = 1 << Isaac.GetCurseIdByName(mod.curseOfBlueRooms2) - 1
-mod.flagCurseOfPitchBlack = 1 << Isaac.GetCurseIdByName(mod.curseOfPitchBlack) - 1
+mod.flagCurseOfBlueRooms = 1 << (Isaac.GetCurseIdByName(mod.curseOfBlueRooms) - 1)
+mod.flagCurseOfBlueRooms2 = 1 << (Isaac.GetCurseIdByName(mod.curseOfBlueRooms2) - 1)
+mod.flagCurseOfPitchBlack = 1 << (Isaac.GetCurseIdByName(mod.curseOfPitchBlack) - 1)
 mod.rng = RNG()
 
 mod.difficulty = {
@@ -21,9 +22,9 @@ mod.difficulty = {
 }
 
 mod.state = {}
-mod.state.blueRooms = {}                    -- clear state for blue rooms
+mod.state.stageSeeds = {}                   -- per stage/type
+mod.state.blueRooms = {}                    -- per stage/type (clear state for blue rooms)
 mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT -- bug fix: the game doesn't remember LeaveDoor on continue
-mod.state.stageSeed = nil
 mod.state.probabilityBlueRooms  = { normal = 3, hard = 20, greed = 0, greedier = 0 }
 mod.state.probabilityBlueRooms2 = { normal = 0, hard = 3,  greed = 0, greedier = 0 }
 mod.state.probabilityPitchBlack = { normal = 0, hard = 3,  greed = 0, greedier = 0 }
@@ -34,18 +35,33 @@ function mod:onGameStart(isContinue)
   local level = game:GetLevel()
   local seeds = game:GetSeeds()
   local stageSeed = seeds:GetStageSeed(level:GetStage())
-  mod.state.stageSeed = stageSeed
+  mod:setStageSeed(stageSeed)
+  mod:clearBlueRooms(false)
   mod:seedRng()
   
   if mod:HasData() then
     local _, state = pcall(json.decode, mod:LoadData())
     
     if type(state) == 'table' then
-      if math.type(state.stageSeed) == 'integer' then
+      if isContinue and type(state.stageSeeds) == 'table' then
         -- quick check to see if this is the same run being continued
-        if state.stageSeed == stageSeed then
+        if state.stageSeeds[mod:getStageIndex()] == stageSeed then
+          for key, value in pairs(state.stageSeeds) do
+            if type(key) == 'string' and math.type(value) == 'integer' then
+              mod.state.stageSeeds[key] = value
+            end
+          end
           if type(state.blueRooms) == 'table' then
-            mod.state.blueRooms = state.blueRooms
+            for key, value in pairs(state.blueRooms) do
+              if type(key) == 'string' and type(value) == 'table' then
+                mod.state.blueRooms[key] = {}
+                for k, v in pairs(value) do
+                  if type(k) == 'string' and type(v) == 'boolean' then
+                    mod.state.blueRooms[key][k] = v
+                  end
+                end
+              end
+            end
           end
           if math.type(state.leaveDoor) == 'integer' and state.leaveDoor > DoorSlot.NO_DOOR_SLOT and state.leaveDoor < DoorSlot.NUM_DOOR_SLOTS then
             mod.state.leaveDoor = state.leaveDoor
@@ -68,16 +84,11 @@ function mod:onGameStart(isContinue)
         mod.state.enableCursesForChallenges = state.enableCursesForChallenges
       end
     end
-    
-    if not isContinue then
-      mod:clearBlueRooms()
-      mod.state.leaveDoor = level.LeaveDoor
-    end
   end
   
   mod:doBlueRoomLogic(true)
   
-  if mod:isChallenge() and not isContinue then -- spawn random boss pool item and book on start
+  if not isContinue and mod:isChallenge() then -- spawn random boss pool item and book on start
     local itemPool = game:GetItemPool()
     local collectible = itemPool:GetCollectible(ItemPoolType.POOL_BOSS, false, Random(), CollectibleType.COLLECTIBLE_NULL)
     Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, collectible, Vector(280, 280), Vector(0,0), nil) -- game:Spawn
@@ -91,7 +102,10 @@ end
 
 function mod:onGameExit()
   mod:SaveData(json.encode(mod.state))
+  mod.frameCount = 0
   mod.onGameStartHasRun = false
+  mod:clearStageSeeds()
+  mod:clearBlueRooms(true)
 end
 
 function mod:onCurseEval(curses)
@@ -125,8 +139,8 @@ function mod:onNewLevel()
   local level = game:GetLevel()
   local seeds = game:GetSeeds()
   local stageSeed = seeds:GetStageSeed(level:GetStage())
-  mod.state.stageSeed = stageSeed
-  mod:clearBlueRooms()
+  mod:setStageSeed(stageSeed)
+  mod:clearBlueRooms(false)
 end
 
 -- onNewRoom doesn't enable FLAG_CURSED_MIST quickly enough
@@ -146,8 +160,6 @@ function mod:onNewRoom()
   local level = game:GetLevel()
   local room = level:GetCurrentRoom()
   local roomDesc = level:GetRoomByIdx(level:GetCurrentRoomIndex(), -1)
-  
-  mod.state.leaveDoor = level.LeaveDoor
   
   -- this needs to happen in onGameStart the first time (which happens after onNewRoom)
   if mod.onGameStartHasRun then
@@ -170,6 +182,7 @@ end
 function mod:onUpdate()
   -- this is here because red rooms could be created at any time
   mod:doBlueRoomLogic(false)
+  mod.frameCount = game:GetFrameCount()
 end
 
 -- filtered to PICKUP_TROPHY
@@ -182,17 +195,28 @@ function mod:onPickupInit(pickup)
   end
 end
 
-function mod:doBlueRoomLogic(setBlueRoomIndex)
+function mod:isRewind()
+  return game:GetFrameCount() < mod.frameCount
+end
+
+function mod:doBlueRoomLogic(setLeaveDoorAndBlueRoomIndex)
   if mod:hasAnyCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
     local level = game:GetLevel()
     local roomDesc = level:GetCurrentRoomDesc() -- read-only
     
     if mod:isBlueRoom(roomDesc) then
-      if setBlueRoomIndex then
+      if setLeaveDoorAndBlueRoomIndex then
+        if not mod:isRewind() then              -- LeaveDoor is wrong when rewinding
+          mod.state.leaveDoor = level.LeaveDoor -- we want the value that was set when we first walked into the blue room, this will sync up with level:GetPreviousRoomIndex
+        end
         mod:setBlueRoomIndex() -- calculate this once
       end
-      
       mod:setBlueRoomState()
+    else
+      if mod.blueRoomIndex and mod:isRewind() then -- if rewinding due to glowing hour glass
+        mod:setBlueRoomState(false)                -- then set the previous blue room state to false
+      end
+      mod.blueRoomIndex = nil
     end
     
     -- set blue room redirect on surrounding rooms
@@ -219,8 +243,10 @@ function mod:setBlueRoomRedirects(indexes)
       local roomDesc = level:GetRoomByIdx(gridIdx, -1) -- doc says this always returns an object, check GridIndex
       
       if roomDesc.GridIndex >= 0 then
-        if not mod:isBlueRoomClear(mod:mergeIndexes(level:GetCurrentRoomDesc().ListIndex, roomDesc.ListIndex)) then
-          roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_BLUE_REDIRECT -- game is responsible for removing this flag
+        if mod:isBlueRoomClear(mod:mergeIndexes(level:GetCurrentRoomDesc().ListIndex, roomDesc.ListIndex)) then
+          roomDesc.Flags = roomDesc.Flags & ~RoomDescriptor.FLAG_BLUE_REDIRECT
+        else
+          roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_BLUE_REDIRECT
         end
       end
     end
@@ -232,106 +258,155 @@ function mod:setBlueRoomIndex()
   local roomDesc = level:GetRoomByIdx(level:GetPreviousRoomIndex(), -1)
   local gridIdx = mod:getSurroundingGridIndexes(roomDesc)[mod.state.leaveDoor] -- index for room we would have gone to
   
-  mod.blueRoomIndex = mod:mergeIndexes(roomDesc.ListIndex, level:GetRoomByIdx(gridIdx, -1).ListIndex)
+  if gridIdx and gridIdx >= 0 then
+    mod.blueRoomIndex = mod:mergeIndexes(roomDesc.ListIndex, level:GetRoomByIdx(gridIdx, -1).ListIndex)
+  else
+    mod.blueRoomIndex = nil
+  end
 end
 
-function mod:setBlueRoomState()
+function mod:setBlueRoomState(override)
   local level = game:GetLevel()
   local roomDesc = level:GetCurrentRoomDesc()
   
-  mod.state.blueRooms[mod.blueRoomIndex] = roomDesc.Clear
+  local stageIndex = mod:getStageIndex()
+  if type(mod.state.blueRooms[stageIndex]) ~= 'table' then
+    mod.state.blueRooms[stageIndex] = {}
+  end
+  
+  if mod.blueRoomIndex then
+    if type(override) == 'boolean' then
+      mod.state.blueRooms[stageIndex][mod.blueRoomIndex] = override
+    else
+      mod.state.blueRooms[stageIndex][mod.blueRoomIndex] = roomDesc.Clear
+    end
+  end
 end
 
 function mod:isBlueRoomClear(index)
-  return mod.state.blueRooms[index]
+  local stageIndex = mod:getStageIndex()
+  if type(mod.state.blueRooms[stageIndex]) ~= 'table' then
+    return false
+  end
+  
+  return mod.state.blueRooms[stageIndex][index] and true or false -- nil evaluates to false
 end
 
-function mod:clearBlueRooms()
-  for key, _ in pairs(mod.state.blueRooms) do
-    mod.state.blueRooms[key] = nil
+function mod:clearBlueRooms(clearAll)
+  if clearAll then
+    for key, _ in pairs(mod.state.blueRooms) do
+      mod.state.blueRooms[key] = nil
+    end
+  else
+    mod.state.blueRooms[mod:getStageIndex()] = nil
+  end
+end
+
+function mod:getStageIndex()
+  local level = game:GetLevel()
+  return level:GetStage() .. '-' .. level:GetStageType() .. '-' .. (level:IsAltStage() and 1 or 0) .. '-' .. (level:IsPreAscent() and 1 or 0) .. '-' .. (level:IsAscent() and 1 or 0)
+end
+
+function mod:getStageSeed()
+  return mod.state.stageSeeds[mod:getStageIndex()]
+end
+
+function mod:setStageSeed(seed)
+  mod.state.stageSeeds[mod:getStageIndex()] = seed
+end
+
+function mod:clearStageSeeds()
+  for key, _ in pairs(mod.state.stageSeeds) do
+    mod.state.stageSeeds[key] = nil
   end
 end
 
 function mod:getSurroundingGridIndexes(roomDesc)
   local indexes = {}
+  local gridIdx = roomDesc.GridIndex
   local shape = roomDesc.Data.Shape
   
+  local left = -1
+  local right = 1
+  local up = -13
+  local down = 13
+  
   if shape == RoomShape.ROOMSHAPE_1x1 then
-    indexes[DoorSlot.LEFT0] = roomDesc.GridIndex - 1
-    indexes[DoorSlot.RIGHT0] = roomDesc.GridIndex + 1
-    indexes[DoorSlot.UP0] = roomDesc.GridIndex - 13
-    indexes[DoorSlot.DOWN0] = roomDesc.GridIndex + 13
+    indexes[DoorSlot.LEFT0] = gridIdx + left
+    indexes[DoorSlot.RIGHT0] = gridIdx + right
+    indexes[DoorSlot.UP0] = gridIdx + up
+    indexes[DoorSlot.DOWN0] = gridIdx + down
   elseif shape == RoomShape.ROOMSHAPE_IH then
-    indexes[DoorSlot.LEFT0] = roomDesc.GridIndex - 1
-    indexes[DoorSlot.RIGHT0] = roomDesc.GridIndex + 1
+    indexes[DoorSlot.LEFT0] = gridIdx + left
+    indexes[DoorSlot.RIGHT0] = gridIdx + right
   elseif shape == RoomShape.ROOMSHAPE_IV then
-    indexes[DoorSlot.UP0] = roomDesc.GridIndex - 13
-    indexes[DoorSlot.DOWN0] = roomDesc.GridIndex + 13
+    indexes[DoorSlot.UP0] = gridIdx + up
+    indexes[DoorSlot.DOWN0] = gridIdx + down
   elseif shape == RoomShape.ROOMSHAPE_1x2 then
-    indexes[DoorSlot.LEFT0] = roomDesc.GridIndex - 1
-    indexes[DoorSlot.RIGHT0] = roomDesc.GridIndex + 1
-    indexes[DoorSlot.UP0] = roomDesc.GridIndex - 13
-    indexes[DoorSlot.DOWN0] = roomDesc.GridIndex + 13 + 13
-    indexes[DoorSlot.LEFT1] = roomDesc.GridIndex + 13 - 1
-    indexes[DoorSlot.RIGHT1] = roomDesc.GridIndex + 13 + 1
+    indexes[DoorSlot.LEFT0] = gridIdx + left
+    indexes[DoorSlot.RIGHT0] = gridIdx + right
+    indexes[DoorSlot.UP0] = gridIdx + up
+    indexes[DoorSlot.DOWN0] = gridIdx + down + down
+    indexes[DoorSlot.LEFT1] = gridIdx + down + left
+    indexes[DoorSlot.RIGHT1] = gridIdx + down + right
   elseif shape == RoomShape.ROOMSHAPE_IIV then
-    indexes[DoorSlot.UP0] = roomDesc.GridIndex - 13
-    indexes[DoorSlot.DOWN0] = roomDesc.GridIndex + 13 + 13
+    indexes[DoorSlot.UP0] = gridIdx + up
+    indexes[DoorSlot.DOWN0] = gridIdx + down + down
   elseif shape == RoomShape.ROOMSHAPE_2x1 then
-    indexes[DoorSlot.LEFT0] = roomDesc.GridIndex - 1
-    indexes[DoorSlot.RIGHT0] = roomDesc.GridIndex + 1 + 1
-    indexes[DoorSlot.UP0] = roomDesc.GridIndex - 13
-    indexes[DoorSlot.DOWN0] = roomDesc.GridIndex + 13
-    indexes[DoorSlot.UP1] = roomDesc.GridIndex - 13 + 1
-    indexes[DoorSlot.DOWN1] = roomDesc.GridIndex + 13 + 1
+    indexes[DoorSlot.LEFT0] = gridIdx + left
+    indexes[DoorSlot.RIGHT0] = gridIdx + right + right
+    indexes[DoorSlot.UP0] = gridIdx + up
+    indexes[DoorSlot.DOWN0] = gridIdx + down
+    indexes[DoorSlot.UP1] = gridIdx + up + right
+    indexes[DoorSlot.DOWN1] = gridIdx + down + right
   elseif shape == RoomShape.ROOMSHAPE_IIH then
-    indexes[DoorSlot.LEFT0] = roomDesc.GridIndex - 1
-    indexes[DoorSlot.RIGHT0] = roomDesc.GridIndex + 1 + 1
+    indexes[DoorSlot.LEFT0] = gridIdx + left
+    indexes[DoorSlot.RIGHT0] = gridIdx + right + right
   elseif shape == RoomShape.ROOMSHAPE_2x2 then
-    indexes[DoorSlot.LEFT0] = roomDesc.GridIndex - 1
-    indexes[DoorSlot.RIGHT0] = roomDesc.GridIndex + 1 + 1
-    indexes[DoorSlot.UP0] = roomDesc.GridIndex - 13
-    indexes[DoorSlot.DOWN0] = roomDesc.GridIndex + 13 + 13
-    indexes[DoorSlot.LEFT1] = roomDesc.GridIndex + 13 - 1
-    indexes[DoorSlot.RIGHT1] = roomDesc.GridIndex + 13 + 1 + 1
-    indexes[DoorSlot.UP1] = roomDesc.GridIndex - 13 + 1
-    indexes[DoorSlot.DOWN1] = roomDesc.GridIndex + 13 + 13 + 1
+    indexes[DoorSlot.LEFT0] = gridIdx + left
+    indexes[DoorSlot.RIGHT0] = gridIdx + right + right
+    indexes[DoorSlot.UP0] = gridIdx + up
+    indexes[DoorSlot.DOWN0] = gridIdx + down + down
+    indexes[DoorSlot.LEFT1] = gridIdx + down + left
+    indexes[DoorSlot.RIGHT1] = gridIdx + down + right + right
+    indexes[DoorSlot.UP1] = gridIdx + up + right
+    indexes[DoorSlot.DOWN1] = gridIdx + down + down + right
   elseif shape == RoomShape.ROOMSHAPE_LTL then
-    indexes[DoorSlot.LEFT0] = roomDesc.GridIndex
-    indexes[DoorSlot.RIGHT0] = roomDesc.GridIndex + 1 + 1
-    indexes[DoorSlot.UP0] = roomDesc.GridIndex
-    indexes[DoorSlot.DOWN0] = roomDesc.GridIndex + 13 + 13
-    indexes[DoorSlot.LEFT1] = roomDesc.GridIndex + 13 - 1
-    indexes[DoorSlot.RIGHT1] = roomDesc.GridIndex + 13 + 1 + 1
-    indexes[DoorSlot.UP1] = roomDesc.GridIndex - 13 + 1
-    indexes[DoorSlot.DOWN1] = roomDesc.GridIndex + 13 + 13 + 1
+    indexes[DoorSlot.LEFT0] = gridIdx
+    indexes[DoorSlot.RIGHT0] = gridIdx + right + right
+    indexes[DoorSlot.UP0] = gridIdx
+    indexes[DoorSlot.DOWN0] = gridIdx + down + down
+    indexes[DoorSlot.LEFT1] = gridIdx + down + left
+    indexes[DoorSlot.RIGHT1] = gridIdx + down + right + right
+    indexes[DoorSlot.UP1] = gridIdx + up + right
+    indexes[DoorSlot.DOWN1] = gridIdx + down + down + right
   elseif shape == RoomShape.ROOMSHAPE_LTR then
-    indexes[DoorSlot.LEFT0] = roomDesc.GridIndex - 1
-    indexes[DoorSlot.RIGHT0] = roomDesc.GridIndex + 1
-    indexes[DoorSlot.UP0] = roomDesc.GridIndex - 13
-    indexes[DoorSlot.DOWN0] = roomDesc.GridIndex + 13 + 13
-    indexes[DoorSlot.LEFT1] = roomDesc.GridIndex + 13 - 1
-    indexes[DoorSlot.RIGHT1] = roomDesc.GridIndex + 13 + 1 + 1
-    indexes[DoorSlot.UP1] = roomDesc.GridIndex + 1
-    indexes[DoorSlot.DOWN1] = roomDesc.GridIndex + 13 + 13 + 1
+    indexes[DoorSlot.LEFT0] = gridIdx + left
+    indexes[DoorSlot.RIGHT0] = gridIdx + right
+    indexes[DoorSlot.UP0] = gridIdx + up
+    indexes[DoorSlot.DOWN0] = gridIdx + down + down
+    indexes[DoorSlot.LEFT1] = gridIdx + down + left
+    indexes[DoorSlot.RIGHT1] = gridIdx + down + right + right
+    indexes[DoorSlot.UP1] = gridIdx + right
+    indexes[DoorSlot.DOWN1] = gridIdx + down + down + right
   elseif shape == RoomShape.ROOMSHAPE_LBL then
-    indexes[DoorSlot.LEFT0] = roomDesc.GridIndex - 1
-    indexes[DoorSlot.RIGHT0] = roomDesc.GridIndex + 1 + 1
-    indexes[DoorSlot.UP0] = roomDesc.GridIndex - 13
-    indexes[DoorSlot.DOWN0] = roomDesc.GridIndex + 13
-    indexes[DoorSlot.LEFT1] = roomDesc.GridIndex + 13
-    indexes[DoorSlot.RIGHT1] = roomDesc.GridIndex + 13 + 1 + 1
-    indexes[DoorSlot.UP1] = roomDesc.GridIndex - 13 + 1
-    indexes[DoorSlot.DOWN1] = roomDesc.GridIndex + 13 + 13 + 1
+    indexes[DoorSlot.LEFT0] = gridIdx + left
+    indexes[DoorSlot.RIGHT0] = gridIdx + right + right
+    indexes[DoorSlot.UP0] = gridIdx + up
+    indexes[DoorSlot.DOWN0] = gridIdx + down
+    indexes[DoorSlot.LEFT1] = gridIdx + down
+    indexes[DoorSlot.RIGHT1] = gridIdx + down + right + right
+    indexes[DoorSlot.UP1] = gridIdx + up + right
+    indexes[DoorSlot.DOWN1] = gridIdx + down + down + right
   elseif shape == RoomShape.ROOMSHAPE_LBR then
-    indexes[DoorSlot.LEFT0] = roomDesc.GridIndex - 1
-    indexes[DoorSlot.RIGHT0] = roomDesc.GridIndex + 1 + 1
-    indexes[DoorSlot.UP0] = roomDesc.GridIndex - 13
-    indexes[DoorSlot.DOWN0] = roomDesc.GridIndex + 13 + 13
-    indexes[DoorSlot.LEFT1] = roomDesc.GridIndex + 13 - 1
-    indexes[DoorSlot.RIGHT1] = roomDesc.GridIndex + 13 + 1
-    indexes[DoorSlot.UP1] = roomDesc.GridIndex - 13 + 1
-    indexes[DoorSlot.DOWN1] = roomDesc.GridIndex + 13 + 1
+    indexes[DoorSlot.LEFT0] = gridIdx + left
+    indexes[DoorSlot.RIGHT0] = gridIdx + right + right
+    indexes[DoorSlot.UP0] = gridIdx + up
+    indexes[DoorSlot.DOWN0] = gridIdx + down + down
+    indexes[DoorSlot.LEFT1] = gridIdx + down + left
+    indexes[DoorSlot.RIGHT1] = gridIdx + down + right
+    indexes[DoorSlot.UP1] = gridIdx + up + right
+    indexes[DoorSlot.DOWN1] = gridIdx + down + right
   end
   
   return indexes
