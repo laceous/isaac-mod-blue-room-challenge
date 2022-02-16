@@ -100,12 +100,22 @@ function mod:onGameStart(isContinue)
   mod.onGameStartHasRun = true
 end
 
-function mod:onGameExit()
-  mod:SaveData(json.encode(mod.state))
+function mod:onGameExit(shouldSave)
+  if shouldSave then
+    mod:SaveData(json.encode(mod.state))
+    mod:clearStageSeeds()
+    mod:clearBlueRooms(true)
+    mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT
+  else
+    mod:clearStageSeeds()
+    mod:clearBlueRooms(true)
+    mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT
+    mod:SaveData(json.encode(mod.state))
+  end
+  
+  mod.blueRoomIndex = nil
   mod.frameCount = 0
   mod.onGameStartHasRun = false
-  mod:clearStageSeeds()
-  mod:clearBlueRooms(true)
 end
 
 function mod:onCurseEval(curses)
@@ -304,7 +314,7 @@ end
 
 function mod:getStageIndex()
   local level = game:GetLevel()
-  return level:GetStage() .. '-' .. level:GetStageType() .. '-' .. (level:IsAltStage() and 1 or 0) .. '-' .. (level:IsPreAscent() and 1 or 0) .. '-' .. (level:IsAscent() and 1 or 0)
+  return game:GetVictoryLap() .. '-' .. level:GetStage() .. '-' .. level:GetStageType() .. '-' .. (level:IsAltStage() and 1 or 0) .. '-' .. (level:IsPreAscent() and 1 or 0) .. '-' .. (level:IsAscent() and 1 or 0)
 end
 
 function mod:getStageSeed()
