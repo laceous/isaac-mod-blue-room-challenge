@@ -22,7 +22,7 @@ mod.difficulty = {
 }
 
 mod.state = {}
-mod.state.stageSeeds = {}                   -- per stage/type
+mod.state.stageSeeds = {}                   -- per stage
 mod.state.blueRooms = {}                    -- per stage/type (clear state for blue rooms)
 mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT -- bug fix: the game doesn't remember LeaveDoor on continue
 mod.state.probabilityBlueRooms  = { normal = 3, hard = 20, greed = 0, greedier = 0 }
@@ -33,8 +33,9 @@ mod.state.enableCursesForChallenges = false
 
 function mod:onGameStart(isContinue)
   local level = game:GetLevel()
+  local stage = level:GetStage()
   local seeds = game:GetSeeds()
-  local stageSeed = seeds:GetStageSeed(level:GetStage())
+  local stageSeed = seeds:GetStageSeed(stage)
   mod:setStageSeed(stageSeed)
   mod:clearBlueRooms(false)
   mod:seedRng()
@@ -45,7 +46,7 @@ function mod:onGameStart(isContinue)
     if type(state) == 'table' then
       if isContinue and type(state.stageSeeds) == 'table' then
         -- quick check to see if this is the same run being continued
-        if state.stageSeeds[mod:getStageIndex()] == stageSeed then
+        if state.stageSeeds[tostring(stage)] == stageSeed then
           for key, value in pairs(state.stageSeeds) do
             if type(key) == 'string' and math.type(value) == 'integer' then
               mod.state.stageSeeds[key] = value
@@ -86,7 +87,7 @@ function mod:onGameStart(isContinue)
     end
   end
   
-  mod:doBlueRoomLogic(true)
+  mod:doBlueRoomLogic(not isContinue, true)
   
   if not isContinue and mod:isChallenge() then -- spawn random boss pool item and book on start
     local itemPool = game:GetItemPool()
@@ -173,7 +174,7 @@ function mod:onNewRoom()
   
   -- this needs to happen in onGameStart the first time (which happens after onNewRoom)
   if mod.onGameStartHasRun then
-    mod:doBlueRoomLogic(true)
+    mod:doBlueRoomLogic(true, true)
   end
   
   if mod:hasAnyCurse(mod.flagCurseOfPitchBlack) or mod:isDarkChallenge() then
@@ -191,7 +192,7 @@ end
 
 function mod:onUpdate()
   -- this is here because red rooms could be created at any time
-  mod:doBlueRoomLogic(false)
+  mod:doBlueRoomLogic(false, false)
   mod.frameCount = game:GetFrameCount()
 end
 
@@ -209,16 +210,18 @@ function mod:isRewind()
   return game:GetFrameCount() < mod.frameCount
 end
 
-function mod:doBlueRoomLogic(setLeaveDoorAndBlueRoomIndex)
+function mod:doBlueRoomLogic(setLeaveDoor, setBlueRoomIndex)
   if mod:hasAnyCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
     local level = game:GetLevel()
     local roomDesc = level:GetCurrentRoomDesc() -- read-only
     
     if mod:isBlueRoom(roomDesc) then
-      if setLeaveDoorAndBlueRoomIndex then
+      if setLeaveDoor then
         if not mod:isRewind() then              -- LeaveDoor is wrong when rewinding
           mod.state.leaveDoor = level.LeaveDoor -- we want the value that was set when we first walked into the blue room, this will sync up with level:GetPreviousRoomIndex
         end
+      end
+      if setBlueRoomIndex then
         mod:setBlueRoomIndex() -- calculate this once
       end
       mod:setBlueRoomState()
@@ -317,12 +320,9 @@ function mod:getStageIndex()
   return game:GetVictoryLap() .. '-' .. level:GetStage() .. '-' .. level:GetStageType() .. '-' .. (level:IsAltStage() and 1 or 0) .. '-' .. (level:IsPreAscent() and 1 or 0) .. '-' .. (level:IsAscent() and 1 or 0)
 end
 
-function mod:getStageSeed()
-  return mod.state.stageSeeds[mod:getStageIndex()]
-end
-
 function mod:setStageSeed(seed)
-  mod.state.stageSeeds[mod:getStageIndex()] = seed
+  local level = game:GetLevel()
+  mod.state.stageSeeds[tostring(level:GetStage())] = seed
 end
 
 function mod:clearStageSeeds()
