@@ -5,6 +5,7 @@ local game = Game()
 mod.blueRoomIndex = nil
 mod.frameCount = 0
 mod.onGameStartHasRun = false
+mod.hadCurseOfBlueRooms = false
 mod.curseOfBlueRooms = 'Curse of Blue Rooms!'
 mod.curseOfBlueRooms2 = 'Curse of Blue Rooms!!'
 mod.curseOfPitchBlack = 'Curse of Pitch Black!'
@@ -24,6 +25,7 @@ mod.difficulty = {
 mod.state = {}
 mod.state.stageSeeds = {}                   -- per stage
 mod.state.blueRooms = {}                    -- per stage/type (clear state for blue rooms)
+mod.state.pitchBlackRooms = {}              -- per stage/type (which rooms we set pitch black on)
 mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT -- bug fix: the game doesn't remember LeaveDoor on continue
 mod.state.probabilityBlueRooms  = { normal = 3, hard = 20, greed = 0, greedier = 0 }
 mod.state.probabilityBlueRooms2 = { normal = 0, hard = 3,  greed = 0, greedier = 0 }
@@ -38,7 +40,26 @@ function mod:onGameStart(isContinue)
   local stageSeed = seeds:GetStageSeed(stage)
   mod:setStageSeed(stageSeed)
   mod:clearBlueRooms(false)
-  mod:seedRng()
+  mod:clearPitchBlackRooms(false)
+  
+  mod:loadData(isContinue, stageSeed)
+  
+  if not isContinue and mod:isChallenge() then -- spawn random boss pool item and book on start
+    local itemPool = game:GetItemPool()
+    local collectible = itemPool:GetCollectible(ItemPoolType.POOL_BOSS, false, Random(), CollectibleType.COLLECTIBLE_NULL)
+    Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, collectible, Vector(280, 280), Vector(0,0), nil) -- game:Spawn
+    
+    local book = mod:isDarkChallenge() and CollectibleType.COLLECTIBLE_SATANIC_BIBLE or CollectibleType.COLLECTIBLE_BOOK_OF_REVELATIONS
+    Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, book, Vector(360, 280), Vector(0,0), nil)
+  end
+  
+  mod.onGameStartHasRun = true
+  mod:onNewRoom()
+end
+
+function mod:loadData(isContinue, stageSeed)
+  local level = game:GetLevel()
+  local stage = level:GetStage()
   
   if mod:HasData() then
     local _, state = pcall(json.decode, mod:LoadData())
@@ -59,6 +80,18 @@ function mod:onGameStart(isContinue)
                 for k, v in pairs(value) do
                   if type(k) == 'string' and type(v) == 'boolean' then
                     mod.state.blueRooms[key][k] = v
+                  end
+                end
+              end
+            end
+          end
+          if type(state.pitchBlackRooms) == 'table' then
+            for key, value in pairs(state.pitchBlackRooms) do
+              if type(key) == 'string' and type(value) == 'table' then
+                mod.state.pitchBlackRooms[key] = {}
+                for k, v in pairs(value) do
+                  if type(k) == 'string' and type(v) == 'boolean' then
+                    mod.state.pitchBlackRooms[key][k] = v
                   end
                 end
               end
@@ -86,19 +119,6 @@ function mod:onGameStart(isContinue)
       end
     end
   end
-  
-  mod:doBlueRoomLogic(not isContinue, true)
-  
-  if not isContinue and mod:isChallenge() then -- spawn random boss pool item and book on start
-    local itemPool = game:GetItemPool()
-    local collectible = itemPool:GetCollectible(ItemPoolType.POOL_BOSS, false, Random(), CollectibleType.COLLECTIBLE_NULL)
-    Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, collectible, Vector(280, 280), Vector(0,0), nil) -- game:Spawn
-    
-    local book = mod:isDarkChallenge() and CollectibleType.COLLECTIBLE_SATANIC_BIBLE or CollectibleType.COLLECTIBLE_BOOK_OF_REVELATIONS
-    Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, book, Vector(360, 280), Vector(0,0), nil)
-  end
-  
-  mod.onGameStartHasRun = true
 end
 
 function mod:onGameExit(shouldSave)
@@ -106,10 +126,12 @@ function mod:onGameExit(shouldSave)
     mod:SaveData(json.encode(mod.state))
     mod:clearStageSeeds()
     mod:clearBlueRooms(true)
+    mod:clearPitchBlackRooms(true)
     mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT
   else
     mod:clearStageSeeds()
     mod:clearBlueRooms(true)
+    mod:clearPitchBlackRooms(true)
     mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT
     mod:SaveData(json.encode(mod.state))
   end
@@ -117,6 +139,8 @@ function mod:onGameExit(shouldSave)
   mod.blueRoomIndex = nil
   mod.frameCount = 0
   mod.onGameStartHasRun = false
+  mod.hadCurseOfBlueRooms = false
+  mod:seedRng()
 end
 
 function mod:onCurseEval(curses)
@@ -146,14 +170,6 @@ function mod:onCurseEval(curses)
   return curses
 end
 
-function mod:onNewLevel()
-  local level = game:GetLevel()
-  local seeds = game:GetSeeds()
-  local stageSeed = seeds:GetStageSeed(level:GetStage())
-  mod:setStageSeed(stageSeed)
-  mod:clearBlueRooms(false)
-end
-
 -- onNewRoom doesn't enable FLAG_CURSED_MIST quickly enough
 function mod:onPreNewRoom()
   if mod:hasAnyCurse(mod.flagCurseOfBlueRooms2) or mod:isCursedChallenge() then
@@ -168,18 +184,26 @@ function mod:onPreNewRoom()
 end
 
 function mod:onNewRoom()
+  -- the game runs in this order: onNewRoom -> onNewLevel -> onGameStart
+  -- that order causes issues here so keep a boolean for onGameStart and a different check for isNewLevel
+  if not mod.onGameStartHasRun then
+    return
+  end
+  
   local level = game:GetLevel()
   local room = level:GetCurrentRoom()
-  local roomDesc = level:GetRoomByIdx(level:GetCurrentRoomIndex(), -1)
+  local roomDesc = level:GetCurrentRoomDesc() -- read-only
   
-  -- this needs to happen in onGameStart the first time (which happens after onNewRoom)
-  if mod.onGameStartHasRun then
-    mod:doBlueRoomLogic(true, true)
+  if mod:isNewLevel() then
+    local seeds = game:GetSeeds()
+    local stageSeed = seeds:GetStageSeed(level:GetStage())
+    mod:setStageSeed(stageSeed)
+    mod:clearBlueRooms(false)
+    mod:clearPitchBlackRooms(false)
   end
   
-  if mod:hasAnyCurse(mod.flagCurseOfPitchBlack) or mod:isDarkChallenge() then
-    roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_PITCH_BLACK
-  end
+  mod:doBlueRoomLogic(true, true)
+  mod:doPitchBlackLogic(true)
   
   if mod:isHushChallenge() then
     if mod:isMomsHeart() and room:IsClear() then
@@ -193,6 +217,7 @@ end
 function mod:onUpdate()
   -- this is here because red rooms could be created at any time
   mod:doBlueRoomLogic(false, false)
+  mod:doPitchBlackLogic(false)
   mod.frameCount = game:GetFrameCount()
 end
 
@@ -211,9 +236,11 @@ function mod:isRewind()
 end
 
 function mod:doBlueRoomLogic(setLeaveDoor, setBlueRoomIndex)
+  local level = game:GetLevel()
+  local roomDesc = level:GetRoomByIdx(level:GetCurrentRoomIndex(), -1)
+  
   if mod:hasAnyCurse(mod.flagCurseOfBlueRooms | mod.flagCurseOfBlueRooms2) or mod:isChallenge() then
-    local level = game:GetLevel()
-    local roomDesc = level:GetCurrentRoomDesc() -- read-only
+    mod.hadCurseOfBlueRooms = true
     
     if mod:isBlueRoom(roomDesc) then
       if setLeaveDoor then
@@ -237,6 +264,34 @@ function mod:doBlueRoomLogic(setLeaveDoor, setBlueRoomIndex)
     if roomDesc.GridIndex >= 0 and not mod:isMinesEscapeSequence() then
       mod:setBlueRoomRedirects(mod:getSurroundingGridIndexes(roomDesc))
     end
+  elseif mod.hadCurseOfBlueRooms then -- remove curse condition from game state
+    mod.hadCurseOfBlueRooms = false   -- we only need to do this for the current room
+    
+    if mod:isBlueRoom(roomDesc) and mod:hasAnyFlag(roomDesc.Flags, RoomDescriptor.FLAG_CURSED_MIST) then
+      roomDesc.Flags = roomDesc.Flags & ~RoomDescriptor.FLAG_CURSED_MIST
+    end
+    
+    if roomDesc.GridIndex >= 0 and not mod:isMinesEscapeSequence() then
+      mod:setBlueRoomRedirects(mod:getSurroundingGridIndexes(roomDesc), true)
+    end
+  end
+end
+
+function mod:doPitchBlackLogic(setFlag)
+  local level = game:GetLevel()
+  local roomDesc = level:GetRoomByIdx(level:GetCurrentRoomIndex(), -1)
+  
+  if mod:hasAnyCurse(mod.flagCurseOfPitchBlack) or mod:isDarkChallenge() then
+    if setFlag and not mod:hasAnyFlag(roomDesc.Flags, RoomDescriptor.FLAG_PITCH_BLACK) then -- some rooms set this by default
+      mod:setPitchBlackRoomState(true)
+      roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_PITCH_BLACK
+    end
+  else
+    local pitchBlackRoomState = mod:getPitchBlackRoomState() -- remove curse condition from game state
+    if pitchBlackRoomState == true or (pitchBlackRoomState == false and mod:hasAnyFlag(roomDesc.Flags, RoomDescriptor.FLAG_PITCH_BLACK)) then -- 3 states: true  = we set it
+      mod:setPitchBlackRoomState(false)                                                                                                       --           false = we set & unset it, but could be reset by glowing hour glass
+      roomDesc.Flags = roomDesc.Flags & ~RoomDescriptor.FLAG_PITCH_BLACK                                                                      --           nil   = we didn't set it
+    end
   end
 end
 
@@ -248,7 +303,7 @@ function mod:isBlueWoom(roomDesc)
   return roomDesc.GridIndex == GridRooms.ROOM_BLUE_WOOM_IDX
 end
 
-function mod:setBlueRoomRedirects(indexes)
+function mod:setBlueRoomRedirects(indexes, forceRemoveFlag)
   local level = game:GetLevel()
   
   for _, gridIdx in pairs(indexes) do
@@ -256,7 +311,7 @@ function mod:setBlueRoomRedirects(indexes)
       local roomDesc = level:GetRoomByIdx(gridIdx, -1) -- doc says this always returns an object, check GridIndex
       
       if roomDesc.GridIndex >= 0 then
-        if mod:isBlueRoomClear(mod:mergeIndexes(level:GetCurrentRoomDesc().ListIndex, roomDesc.ListIndex)) then
+        if forceRemoveFlag or mod:isBlueRoomClear(mod:mergeIndexes(level:GetCurrentRoomDesc().ListIndex, roomDesc.ListIndex)) then
           roomDesc.Flags = roomDesc.Flags & ~RoomDescriptor.FLAG_BLUE_REDIRECT
         else
           roomDesc.Flags = roomDesc.Flags | RoomDescriptor.FLAG_BLUE_REDIRECT
@@ -315,6 +370,40 @@ function mod:clearBlueRooms(clearAll)
   end
 end
 
+function mod:setPitchBlackRoomState(state)
+  local level = game:GetLevel()
+  local roomDesc = level:GetCurrentRoomDesc()
+  
+  local stageIndex = mod:getStageIndex()
+  if type(mod.state.pitchBlackRooms[stageIndex]) ~= 'table' then
+    mod.state.pitchBlackRooms[stageIndex] = {}
+  end
+  
+  mod.state.pitchBlackRooms[stageIndex][tostring(roomDesc.ListIndex)] = state
+end
+
+function mod:getPitchBlackRoomState()
+  local level = game:GetLevel()
+  local roomDesc = level:GetCurrentRoomDesc()
+  
+  local stageIndex = mod:getStageIndex()
+  if type(mod.state.pitchBlackRooms[stageIndex]) ~= 'table' then
+    return nil
+  end
+  
+  return mod.state.pitchBlackRooms[stageIndex][tostring(roomDesc.ListIndex)]
+end
+
+function mod:clearPitchBlackRooms(clearAll)
+  if clearAll then
+    for key, _ in pairs(mod.state.pitchBlackRooms) do
+      mod.state.pitchBlackRooms[key] = nil
+    end
+  else
+    mod.state.pitchBlackRooms[mod:getStageIndex()] = nil
+  end
+end
+
 function mod:getStageIndex()
   local level = game:GetLevel()
   return game:GetVictoryLap() .. '-' .. level:GetStage() .. '-' .. level:GetStageType() .. '-' .. (level:IsAltStage() and 1 or 0) .. '-' .. (level:IsPreAscent() and 1 or 0) .. '-' .. (level:IsAscent() and 1 or 0)
@@ -329,6 +418,28 @@ function mod:clearStageSeeds()
   for key, _ in pairs(mod.state.stageSeeds) do
     mod.state.stageSeeds[key] = nil
   end
+end
+
+function mod:isNewLevel()
+  local level = game:GetLevel()
+  local roomDesc = level:GetCurrentRoomDesc()
+  
+  if roomDesc.GridIndex < 0 then
+    return false
+  end
+  
+  local visitedCounts = 0
+  local rooms = level:GetRooms()
+  
+  for i = 0, #rooms - 1 do
+    local room = rooms:Get(i)
+    visitedCounts = visitedCounts + room.VisitedCount
+    if visitedCounts > 1 then
+      break
+    end
+  end
+  
+  return visitedCounts <= 1
 end
 
 function mod:getSurroundingGridIndexes(roomDesc)
@@ -606,10 +717,11 @@ function mod:setupModConfigMenu()
 end
 -- end ModConfigMenu --
 
+mod:seedRng()
+mod:loadData(false, nil) -- make sure probability data is loaded before the first occurrence of onCurseEval
 mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, mod.onGameStart)
 mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, mod.onGameExit)
 mod:AddCallback(ModCallbacks.MC_POST_CURSE_EVAL, mod.onCurseEval)
-mod:AddCallback(ModCallbacks.MC_POST_NEW_LEVEL, mod.onNewLevel)
 mod:AddCallback(ModCallbacks.MC_PRE_ROOM_ENTITY_SPAWN, mod.onPreNewRoom) -- fires 0-n times per new room, 1-n for blue rooms
 mod:AddCallback(ModCallbacks.MC_POST_NEW_ROOM, mod.onNewRoom)
 mod:AddCallback(ModCallbacks.MC_POST_UPDATE, mod.onUpdate)
