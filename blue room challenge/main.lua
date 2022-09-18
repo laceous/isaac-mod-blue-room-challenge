@@ -657,6 +657,9 @@ end
 
 -- start ModConfigMenu --
 function mod:setupModConfigMenu()
+  for _, v in ipairs({ 'Curses' }) do
+    ModConfigMenu.RemoveSubcategory(mod.Name, v)
+  end
   ModConfigMenu.AddSetting(
     mod.Name,
     'Curses',
