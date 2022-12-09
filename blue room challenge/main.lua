@@ -13,7 +13,7 @@ mod.curseOfPitchBlack = 'Curse of Pitch Black!'
 mod.flagCurseOfBlueRooms = 1 << (Isaac.GetCurseIdByName(mod.curseOfBlueRooms) - 1)
 mod.flagCurseOfBlueRooms2 = 1 << (Isaac.GetCurseIdByName(mod.curseOfBlueRooms2) - 1)
 mod.flagCurseOfPitchBlack = 1 << (Isaac.GetCurseIdByName(mod.curseOfPitchBlack) - 1)
-mod.rng = RNG()
+mod.rngShiftIndex = 35
 
 mod.difficulty = {
   [Difficulty.DIFFICULTY_NORMAL] = 'normal',
@@ -140,7 +140,6 @@ function mod:onGameExit(shouldSave)
   mod.frameCount = 0
   mod.onGameStartHasRun = false
   mod.hadCurseOfBlueRooms = false
-  mod:seedRng()
 end
 
 function mod:onCurseEval(curses)
@@ -158,11 +157,18 @@ function mod:onCurseEval(curses)
   end
   
   if curses == LevelCurse.CURSE_NONE or mod.state.overrideCurses then
-    if mod.rng:RandomInt(100) < mod.state.probabilityBlueRooms[mod.difficulty[game.Difficulty]] then
+    local level = game:GetLevel()
+    local stage = level:GetStage()
+    local seeds = game:GetSeeds()
+    local stageSeed = seeds:GetStageSeed(stage)
+    local rng = RNG()
+    rng:SetSeed(stageSeed, mod.rngShiftIndex)
+    
+    if rng:RandomInt(100) < mod.state.probabilityBlueRooms[mod.difficulty[game.Difficulty]] then
       return mod.flagCurseOfBlueRooms
-    elseif mod.rng:RandomInt(100) < mod.state.probabilityBlueRooms2[mod.difficulty[game.Difficulty]] then
+    elseif rng:RandomInt(100) < mod.state.probabilityBlueRooms2[mod.difficulty[game.Difficulty]] then
       return mod.flagCurseOfBlueRooms2
-    elseif mod.rng:RandomInt(100) < mod.state.probabilityPitchBlack[mod.difficulty[game.Difficulty]] then
+    elseif rng:RandomInt(100) < mod.state.probabilityPitchBlack[mod.difficulty[game.Difficulty]] then
       return mod.flagCurseOfPitchBlack
     end
   end
@@ -556,15 +562,6 @@ function mod:mergeIndexes(index1, index2)
   return low .. '-' .. high
 end
 
-function mod:seedRng()
-  repeat
-    local rand = Random()  -- 0 to 2^32
-    if rand > 0 then       -- if this is 0, it causes a crash later on
-      mod.rng:SetSeed(rand, 1)
-    end
-  until(rand > 0)
-end
-
 function mod:isMinesEscapeSequence()
   local level = game:GetLevel()
   local roomDesc = level:GetCurrentRoomDesc()
@@ -731,7 +728,6 @@ function mod:setupModConfigMenu()
 end
 -- end ModConfigMenu --
 
-mod:seedRng()
 mod:loadData(false, nil) -- make sure probability data is loaded before the first occurrence of onCurseEval
 mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, mod.onGameStart)
 mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, mod.onGameExit)
