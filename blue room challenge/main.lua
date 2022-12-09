@@ -45,8 +45,9 @@ function mod:onGameStart(isContinue)
   mod:loadData(isContinue, stageSeed)
   
   if not isContinue and mod:isChallenge() then -- spawn random boss pool item and book on start
+    local room = level:GetCurrentRoom()
     local itemPool = game:GetItemPool()
-    local collectible = itemPool:GetCollectible(ItemPoolType.POOL_BOSS, false, Random(), CollectibleType.COLLECTIBLE_NULL)
+    local collectible = itemPool:GetCollectible(ItemPoolType.POOL_BOSS, false, room:GetSpawnSeed(), CollectibleType.COLLECTIBLE_NULL)
     Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, collectible, Vector(280, 280), Vector(0,0), nil) -- game:Spawn
     
     local book = mod:isDarkChallenge() and CollectibleType.COLLECTIBLE_SATANIC_BIBLE or CollectibleType.COLLECTIBLE_BOOK_OF_REVELATIONS
