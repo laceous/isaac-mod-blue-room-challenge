@@ -124,7 +124,7 @@ end
 
 function mod:onGameExit(shouldSave)
   if shouldSave then
-    mod:SaveData(json.encode(mod.state))
+    mod:save()
     mod:clearStageSeeds()
     mod:clearBlueRooms(true)
     mod:clearPitchBlackRooms(true)
@@ -134,13 +134,35 @@ function mod:onGameExit(shouldSave)
     mod:clearBlueRooms(true)
     mod:clearPitchBlackRooms(true)
     mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT
-    mod:SaveData(json.encode(mod.state))
+    mod:save()
   end
   
   mod.blueRoomIndex = nil
   mod.frameCount = 0
   mod.onGameStartHasRun = false
   mod.hadCurseOfBlueRooms = false
+end
+
+function mod:save(settingsOnly)
+  if settingsOnly then
+    local _, state
+    if mod:HasData() then
+      _, state = pcall(json.decode, mod:LoadData())
+    end
+    if type(state) ~= 'table' then
+      state = {}
+    end
+    
+    state.probabilityBlueRooms = mod.state.probabilityBlueRooms
+    state.probabilityBlueRooms2 = mod.state.probabilityBlueRooms2
+    state.probabilityPitchBlack = mod.state.probabilityPitchBlack
+    state.overrideCurses = mod.state.overrideCurses
+    state.enableCursesForChallenges = mod.state.enableCursesForChallenges
+    
+    mod:SaveData(json.encode(state))
+  else
+    mod:SaveData(json.encode(mod.state))
+  end
 end
 
 function mod:onCurseEval(curses)
@@ -671,6 +693,7 @@ function mod:setupModConfigMenu()
       end,
       OnChange = function(b)
         mod.state.overrideCurses = b
+        mod:save(true)
       end,
       Info = { 'The game may have already set a curse', 'Should we respect it or potentially override it?' }
     }
@@ -688,6 +711,7 @@ function mod:setupModConfigMenu()
       end,
       OnChange = function(b)
         mod.state.enableCursesForChallenges = b
+        mod:save(true)
       end,
       Info = { 'Can other challenges potentially get the curses listed below?' }
     }
@@ -717,6 +741,7 @@ function mod:setupModConfigMenu()
           end,
           OnChange = function(n)
             mod.state[probability][difficulty] = n
+            mod:save(true)
           end,
           Info = { 'The curses here are evaluated in order' }
         }

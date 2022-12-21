@@ -78,7 +78,7 @@ The icon for the custom curses will either show Curse of the Giant or nothing. T
 Picking up the Black Candle will remove Curse of Blue Rooms, but the blue room glow can still be visible until you go into the next room.
 
 The Hush challenges will show the Mom's Heart icon as the ending boss.</description>
-    <version>1.24</version>
+    <version>1.25</version>
     <visibility>Public</visibility>
     <tag id="Lua"/>
     <tag id="Hazards"/>
