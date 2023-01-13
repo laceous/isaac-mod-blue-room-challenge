@@ -176,7 +176,7 @@ function mod:onCurseEval(curses)
   end
   
   if Isaac.GetChallenge() ~= Challenge.CHALLENGE_NULL and not mod.state.enableCursesForChallenges then
-    return curses
+    return nil
   end
   
   if curses == LevelCurse.CURSE_NONE or mod.state.overrideCurses then
@@ -196,7 +196,7 @@ function mod:onCurseEval(curses)
     end
   end
   
-  return curses
+  return nil -- return nil if no changes are required
 end
 
 -- onNewRoom doesn't enable FLAG_CURSED_MIST quickly enough
