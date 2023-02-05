@@ -23,7 +23,6 @@ mod.difficulty = {
 }
 
 mod.state = {}
-mod.state.stageSeeds = {}                   -- per stage
 mod.state.blueRooms = {}                    -- per stage/type (clear state for blue rooms)
 mod.state.pitchBlackRooms = {}              -- per stage/type (which rooms we set pitch black on)
 mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT -- bug fix: the game doesn't remember LeaveDoor on continue
@@ -34,18 +33,13 @@ mod.state.overrideCurses = false
 mod.state.enableCursesForChallenges = false
 
 function mod:onGameStart(isContinue)
-  local level = game:GetLevel()
-  local stage = level:GetStage()
-  local seeds = game:GetSeeds()
-  local stageSeed = seeds:GetStageSeed(stage)
-  mod:setStageSeed(stageSeed)
   mod:clearBlueRooms(false)
   mod:clearPitchBlackRooms(false)
   
-  mod:loadData(isContinue, stageSeed)
+  mod:loadData(isContinue)
   
   if not isContinue and mod:isChallenge() then -- spawn random boss pool item and book on start
-    local room = level:GetCurrentRoom()
+    local room = game:GetRoom()
     local itemPool = game:GetItemPool()
     local collectible = itemPool:GetCollectible(ItemPoolType.POOL_BOSS, false, room:GetSpawnSeed(), CollectibleType.COLLECTIBLE_NULL)
     Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, collectible, Vector(280, 280), Vector(0,0), nil) -- game:Spawn
@@ -58,49 +52,38 @@ function mod:onGameStart(isContinue)
   mod:onNewRoom()
 end
 
-function mod:loadData(isContinue, stageSeed)
-  local level = game:GetLevel()
-  local stage = level:GetStage()
-  
+function mod:loadData(isContinue)
   if mod:HasData() then
     local _, state = pcall(json.decode, mod:LoadData())
     
     if type(state) == 'table' then
-      if isContinue and type(state.stageSeeds) == 'table' then
-        -- quick check to see if this is the same run being continued
-        if state.stageSeeds[tostring(stage)] == stageSeed then
-          for key, value in pairs(state.stageSeeds) do
-            if type(key) == 'string' and math.type(value) == 'integer' then
-              mod.state.stageSeeds[key] = value
-            end
-          end
-          if type(state.blueRooms) == 'table' then
-            for key, value in pairs(state.blueRooms) do
-              if type(key) == 'string' and type(value) == 'table' then
-                mod.state.blueRooms[key] = {}
-                for k, v in pairs(value) do
-                  if type(k) == 'string' and type(v) == 'boolean' then
-                    mod.state.blueRooms[key][k] = v
-                  end
+      if isContinue then
+        if type(state.blueRooms) == 'table' then
+          for key, value in pairs(state.blueRooms) do
+            if type(key) == 'string' and type(value) == 'table' then
+              mod.state.blueRooms[key] = {}
+              for k, v in pairs(value) do
+                if type(k) == 'string' and type(v) == 'boolean' then
+                  mod.state.blueRooms[key][k] = v
                 end
               end
             end
           end
-          if type(state.pitchBlackRooms) == 'table' then
-            for key, value in pairs(state.pitchBlackRooms) do
-              if type(key) == 'string' and type(value) == 'table' then
-                mod.state.pitchBlackRooms[key] = {}
-                for k, v in pairs(value) do
-                  if type(k) == 'string' and type(v) == 'boolean' then
-                    mod.state.pitchBlackRooms[key][k] = v
-                  end
+        end
+        if type(state.pitchBlackRooms) == 'table' then
+          for key, value in pairs(state.pitchBlackRooms) do
+            if type(key) == 'string' and type(value) == 'table' then
+              mod.state.pitchBlackRooms[key] = {}
+              for k, v in pairs(value) do
+                if type(k) == 'string' and type(v) == 'boolean' then
+                  mod.state.pitchBlackRooms[key][k] = v
                 end
               end
             end
           end
-          if math.type(state.leaveDoor) == 'integer' and state.leaveDoor > DoorSlot.NO_DOOR_SLOT and state.leaveDoor < DoorSlot.NUM_DOOR_SLOTS then
-            mod.state.leaveDoor = state.leaveDoor
-          end
+        end
+        if math.type(state.leaveDoor) == 'integer' and state.leaveDoor > DoorSlot.NO_DOOR_SLOT and state.leaveDoor < DoorSlot.NUM_DOOR_SLOTS then
+          mod.state.leaveDoor = state.leaveDoor
         end
       end
       for _, probability in ipairs({ 'probabilityBlueRooms', 'probabilityBlueRooms2', 'probabilityPitchBlack' }) do
@@ -125,12 +108,10 @@ end
 function mod:onGameExit(shouldSave)
   if shouldSave then
     mod:save()
-    mod:clearStageSeeds()
     mod:clearBlueRooms(true)
     mod:clearPitchBlackRooms(true)
     mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT
   else
-    mod:clearStageSeeds()
     mod:clearBlueRooms(true)
     mod:clearPitchBlackRooms(true)
     mod.state.leaveDoor = DoorSlot.NO_DOOR_SLOT
@@ -224,9 +205,6 @@ function mod:onNewRoom()
   local roomDesc = level:GetCurrentRoomDesc() -- read-only
   
   if mod:isNewLevel() then
-    local seeds = game:GetSeeds()
-    local stageSeed = seeds:GetStageSeed(level:GetStage())
-    mod:setStageSeed(stageSeed)
     mod:clearBlueRooms(false)
     mod:clearPitchBlackRooms(false)
   end
@@ -446,17 +424,6 @@ function mod:getStageIndex()
   end
   
   return game:GetVictoryLap() .. '-' .. stage .. '-' .. stageType .. '-' .. (isAltStage and 1 or 0) .. '-' .. (level:IsPreAscent() and 1 or 0) .. '-' .. (level:IsAscent() and 1 or 0)
-end
-
-function mod:setStageSeed(seed)
-  local level = game:GetLevel()
-  mod.state.stageSeeds[tostring(level:GetStage())] = seed
-end
-
-function mod:clearStageSeeds()
-  for key, _ in pairs(mod.state.stageSeeds) do
-    mod.state.stageSeeds[key] = nil
-  end
 end
 
 -- this doesn't work in the ascent, but curses don't work in the ascent so this is ok
@@ -754,7 +721,7 @@ function mod:setupModConfigMenu()
 end
 -- end ModConfigMenu --
 
-mod:loadData(false, nil) -- make sure probability data is loaded before the first occurrence of onCurseEval
+mod:loadData(false) -- make sure probability data is loaded before the first occurrence of onCurseEval
 mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, mod.onGameStart)
 mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, mod.onGameExit)
 mod:AddCallback(ModCallbacks.MC_POST_CURSE_EVAL, mod.onCurseEval)
