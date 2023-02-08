@@ -147,6 +147,10 @@ function mod:save(settingsOnly)
 end
 
 function mod:onCurseEval(curses)
+  if not mod.onGameStartHasRun then
+    mod:loadData(false)
+  end
+  
   if mod:isChallenge() then
     local flag = mod:isCursedChallenge() and mod.flagCurseOfBlueRooms2 or mod.flagCurseOfBlueRooms
     if mod:isDarkChallenge() then
@@ -721,7 +725,6 @@ function mod:setupModConfigMenu()
 end
 -- end ModConfigMenu --
 
-mod:loadData(false) -- make sure probability data is loaded before the first occurrence of onCurseEval
 mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, mod.onGameStart)
 mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, mod.onGameExit)
 mod:AddCallback(ModCallbacks.MC_POST_CURSE_EVAL, mod.onCurseEval)
