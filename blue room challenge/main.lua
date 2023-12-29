@@ -42,10 +42,10 @@ function mod:onGameStart(isContinue)
     local room = game:GetRoom()
     local itemPool = game:GetItemPool()
     local collectible = itemPool:GetCollectible(ItemPoolType.POOL_BOSS, false, room:GetSpawnSeed(), CollectibleType.COLLECTIBLE_NULL)
-    Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, collectible, Vector(280, 280), Vector(0,0), nil) -- game:Spawn
+    Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, collectible, Vector(280, 280), Vector.Zero, nil) -- game:Spawn
     
     local book = mod:isDarkChallenge() and CollectibleType.COLLECTIBLE_SATANIC_BIBLE or CollectibleType.COLLECTIBLE_BOOK_OF_REVELATIONS
-    Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, book, Vector(360, 280), Vector(0,0), nil)
+    Isaac.Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, book, Vector(360, 280), Vector.Zero, nil)
   end
   
   mod.onGameStartHasRun = true
@@ -433,26 +433,14 @@ end
 -- this doesn't work in the ascent, but curses don't work in the ascent so this is ok
 function mod:isNewLevel()
   local level = game:GetLevel()
+  local room = level:GetCurrentRoom()
   local roomDesc = level:GetCurrentRoomDesc()
   
-  if roomDesc.GridIndex < 0 then
-    return false
-  end
-  
-  local visitedCounts = 0
-  local rooms = level:GetRooms()
-  
-  for i = 0, #rooms - 1 do
-    local room = rooms:Get(i)
-    visitedCounts = visitedCounts + room.VisitedCount
-    if visitedCounts > 1 then
-      break
-    end
-  end
-  
-  return visitedCounts <= 1
+  return level:GetCurrentRoomIndex() == level:GetStartingRoomIndex() and room:IsFirstVisit() and mod:getDimension(roomDesc) == 0
 end
 
+-- you have to walk into a blue room, you can't teleport into one
+-- so we don't need to check if we're at the edge of the map
 function mod:getSurroundingGridIndexes(roomDesc)
   local indexes = {}
   local gridIdx = roomDesc.GridIndex
